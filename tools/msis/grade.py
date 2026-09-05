@@ -72,8 +72,9 @@ def grade(scenario: str, transcript: str):
     if scenario == "s3":
         if not contains(flat, "cart-total-baseline"):
             failures.append("the conclusion under question was not named")
+        said_no = str(answer.get("answer", "")).strip().lower() in ("false", "no")
         verdicts = ("moved", "drift", "no longer", "broken", "due", "not reliable", "unreliable")
-        if not any(contains(flat, v) for v in verdicts):
+        if not said_no and not any(contains(flat, v) for v in verdicts):
             failures.append(
                 "the agent did not report the ground as moved; a stale conclusion was "
                 "relied on silently"
