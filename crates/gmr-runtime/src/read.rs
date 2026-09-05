@@ -1056,7 +1056,7 @@ fn differing(
             keys.sort();
             keys.dedup();
             for k in keys {
-                if path.is_empty() && (k == gmr_core::POSITION || k == gmr_core::STATUS) {
+                if path.is_empty() && k == gmr_core::POSITION {
                     continue;
                 }
                 let next = match path.is_empty() {
@@ -1093,6 +1093,9 @@ fn differing(
 fn axes_between(before: &State, now: &State) -> Vec<(String, Divergence)> {
     let mut out = Vec::new();
     differing(before.as_value(), now.as_value(), "", &mut out);
+    if out.len() > 1 {
+        out.retain(|(path, _)| path != gmr_core::STATUS);
+    }
     out
 }
 
@@ -1298,6 +1301,56 @@ async fn ground(
         memories,
         said,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::axes_between;
+    use gmr_core::State;
+
+    fn state(v: serde_json::Value) -> State {
+        State::new(v)
+    }
+
+    #[test]
+    fn a_status_only_transition_is_the_whole_signal_and_is_reported() {
+        let before = state(serde_json::json!({ "position": {}, "status": "ok" }));
+        let now = state(serde_json::json!({ "position": {}, "status": "breached" }));
+        let axes: Vec<String> = axes_between(&before, &now)
+            .into_iter()
+            .map(|(p, _)| p)
+            .collect();
+        assert_eq!(
+            axes,
+            vec!["status"],
+            "a hand-written rule table may produce a complete state of exactly position and \
+             status. Skipping status unconditionally made every transition of such an anchor \
+             diff empty, and a claim bound to it answered Holds forever while the anchor \
+             said breached"
+        );
+    }
+
+    #[test]
+    fn status_beside_other_movement_stays_the_redundant_summary_it_is() {
+        let before = state(
+            serde_json::json!({ "position": {}, "v": { "sig": false }, "status": "settled" }),
+        );
+        let now = state(
+            serde_json::json!({ "position": {}, "v": { "sig": true }, "status": "sig-changed" }),
+        );
+        let axes: Vec<String> = axes_between(&before, &now)
+            .into_iter()
+            .map(|(p, _)| p)
+            .collect();
+        assert_eq!(axes, vec!["v.sig"]);
+    }
+
+    #[test]
+    fn a_position_only_change_is_where_we_looked_not_what_we_found() {
+        let before = state(serde_json::json!({ "position": { "file": "a.rs" }, "status": "ok" }));
+        let now = state(serde_json::json!({ "position": { "file": "b.rs" }, "status": "ok" }));
+        assert!(axes_between(&before, &now).is_empty());
+    }
 }
 
 async fn cobound(
