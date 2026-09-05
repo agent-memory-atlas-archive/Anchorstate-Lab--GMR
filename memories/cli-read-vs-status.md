@@ -47,14 +47,16 @@ is renamed under them. The list above said `attempts`, `retrievable` and
 A note that quotes another layer's field names has to watch that layer, or it is
 grounded to the wrong thing and the green means nothing.
 
-## `--fresher-than-secs` is the one thing it does besides dump
+## The instructions reach the CLI here, and none of them edits the dump
 
-`read` is also where the freshness instruction ([[runtime-instructions]]) reaches
-the CLI, and that makes it the one verb here that can go and look before it
-prints. It stays a dump: the flag decides *which* reading is dumped — the one on
-record, or one taken just now — and never edits what is printed about it. Unset,
-nothing goes out, which is why the rest of this note still describes the whole
-behaviour.
+`read` is where the runtime's instructions ([[runtime-instructions]]) reach the
+CLI. `--fresher-than-secs` makes it the one verb here that can go and look before
+it prints; it decides *which* reading is dumped — the one on record, or one taken
+just now — and never edits what is printed about it. Unset, nothing goes out.
+`--lean` drops record bodies from the envelope, and `--carry` folds in records one
+link away from each bound memory, marked as carrying no local guarantee — both
+change what is included, neither rewrites what any included thing says, so the
+rest of this note still describes the whole behaviour.
 
 It belongs on `read` rather than on `status` for the same reason the two are
 separate at all. `status` answers "what am I watching", a question about the
