@@ -1303,6 +1303,27 @@ async fn ground(
     })
 }
 
+async fn cobound(
+    log: &AnchorLog,
+    memory: &MemoryLens,
+    claim: &Claim,
+) -> Result<Vec<Claim>, RuntimeError> {
+    let bound = memory.binding_of(claim).await?;
+    let mut out: Vec<Claim> = Vec::new();
+    for anchor in bound.anchors() {
+        for other in memory.bindings_on(log, anchor).await? {
+            let Some(beside) = other.claim().cloned() else {
+                continue;
+            };
+            if !beside.same(claim) && !out.iter().any(|held| held.same(&beside)) {
+                out.push(beside);
+            }
+        }
+    }
+    out.sort_by_key(Claim::to_string);
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::axes_between;
@@ -1351,25 +1372,4 @@ mod tests {
         let now = state(serde_json::json!({ "position": { "file": "b.rs" }, "status": "ok" }));
         assert!(axes_between(&before, &now).is_empty());
     }
-}
-
-async fn cobound(
-    log: &AnchorLog,
-    memory: &MemoryLens,
-    claim: &Claim,
-) -> Result<Vec<Claim>, RuntimeError> {
-    let bound = memory.binding_of(claim).await?;
-    let mut out: Vec<Claim> = Vec::new();
-    for anchor in bound.anchors() {
-        for other in memory.bindings_on(log, anchor).await? {
-            let Some(beside) = other.claim().cloned() else {
-                continue;
-            };
-            if !beside.same(claim) && !out.iter().any(|held| held.same(&beside)) {
-                out.push(beside);
-            }
-        }
-    }
-    out.sort_by_key(Claim::to_string);
-    Ok(out)
 }
