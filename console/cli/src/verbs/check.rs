@@ -115,6 +115,7 @@ pub async fn run(
     let mut handed: Vec<(AnchorKey, String, Option<String>, Vec<gmr::Ref>)> = Vec::new();
     let mut unclaimed = Vec::new();
     let mut unseen = Vec::new();
+    let mut contended: Vec<AnchorKey> = Vec::new();
     let mut snags: Vec<super::observe::Snag> = Vec::new();
     let mut quiet = 0;
 
@@ -122,6 +123,10 @@ pub async fn run(
         let key = &before.key;
         if let Observed::Attempt { code, message, .. } = observed {
             unseen.push((key.clone(), format!("{code:?}: {message}")));
+            continue;
+        }
+        if matches!(observed, Observed::Contended) {
+            contended.push(key.clone());
             continue;
         }
         let Some((moved, state)) = settled(observed, &before.state) else {
@@ -186,6 +191,7 @@ pub async fn run(
                 "unseen": unseen.iter().map(|(k, m)| serde_json::json!({
                     "anchor": k, "detail": m
                 })).collect::<Vec<_>>(),
+                "contended": contended,
                 "criteria_drifted": drifted.iter().map(|(k, f)| serde_json::json!({
                     "anchor": k, "facets": f
                 })).collect::<Vec<_>>(),
@@ -222,11 +228,23 @@ pub async fn run(
             println!("  ! {key}  {detail}");
         }
     }
+    if !contended.is_empty() {
+        println!(
+            "\n{} under another writer's lease this run — observed by the holder, \
+             not evaluated here:",
+            contended.len()
+        );
+        for key in &contended {
+            println!("  ~ {key}");
+        }
+    }
     super::observe::report_unclaimed(&unclaimed);
     super::observe::report_snags(&snags);
 
     match (handed.len(), quiet) {
-        (0, 0) if !wrong.any() => println!("{} anchors, nothing moved.", keys.len()),
+        (0, 0) if !wrong.any() && contended.is_empty() => {
+            println!("{} anchors, nothing moved.", keys.len());
+        }
         (0, n) if n > 0 => println!(
             "\n{} anchors, {n} moved on axes nobody asked about. `gmr status` shows them.",
             keys.len()
