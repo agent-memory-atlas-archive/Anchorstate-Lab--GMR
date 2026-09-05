@@ -904,7 +904,7 @@ async fn anchored(
     };
     let bound_at = held.bound_at();
     let saw = held.saw().clone();
-    let shown = shown_at(log, key, &saw, bound_at).await?;
+    let shown = shown_at(log, key, &saw, bound_at, view.fact_address.as_ref()).await?;
     Ok(Anchored::On {
         key: key.clone(),
         warrant: Box::new(warranted(log, key, bound_at, view, *moved_at).await?),
@@ -973,17 +973,24 @@ async fn shown_at(
     key: &AnchorKey,
     saw: &BTreeSet<FactAddress>,
     bound_at: Option<Seq>,
+    now_showing: Option<&FactAddress>,
 ) -> Result<Shown, RuntimeError> {
     if saw.is_empty() {
         return Ok(Shown::NotSaid);
     }
-    Ok(recorded_at(&log.entries(key, 0).await?, saw, bound_at))
+    Ok(recorded_at(
+        &log.entries(key, 0).await?,
+        saw,
+        bound_at,
+        now_showing,
+    ))
 }
 
 fn recorded_at(
     entries: &[(Seq, Entry)],
     saw: &BTreeSet<FactAddress>,
     bound_at: Option<Seq>,
+    now_showing: Option<&FactAddress>,
 ) -> Shown {
     let taken: Vec<(Seq, &FactAddress)> = entries
         .iter()
@@ -999,7 +1006,8 @@ fn recorded_at(
     };
     let showing = bound_at
         .and_then(|bound| folded_at(entries, bound))
-        .and_then(|state| state.latest.map(|o| o.fact_address));
+        .and_then(|state| state.latest.map(|o| o.fact_address))
+        .or_else(|| now_showing.cloned());
     match showing {
         None => Shown::Seen { at: first },
         Some(current) => match taken.iter().find(|(_, address)| **address == current) {
