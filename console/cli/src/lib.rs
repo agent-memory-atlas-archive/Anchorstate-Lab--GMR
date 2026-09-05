@@ -201,7 +201,8 @@ pub async fn served(
             id,
             retire,
             fresher_than_secs,
-        } => verbs::standing::run(&rt, id, retire, fresher_than_secs, json).await,
+            reach,
+        } => verbs::standing::run(&rt, id, retire, fresher_than_secs, reach, json).await,
         Command::Sample {
             key,
             fresher_than_secs,
@@ -231,7 +232,8 @@ pub async fn served(
             key,
             fresher_than_secs,
             lean,
-        } => verbs::read::run(&rt, names, key, fresher_than_secs, lean, json).await,
+            carry,
+        } => verbs::read::run(&rt, names, key, fresher_than_secs, lean, carry, json).await,
         Command::Revise(args) => verbs::revise::run(&rt, &root, args, json).await,
         Command::Rebase { keys, all, why } => {
             verbs::rebase::run(&rt, &root, names, keys, all, why, json).await

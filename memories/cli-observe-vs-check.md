@@ -18,17 +18,25 @@ oversight to fix by pointing one verb's callers at the other.
 that anchor, let alone whether a subscription's `watch:` cared about the axis that
 moved.
 
-`Observed::Contended` prints and does not count. Another writer recorded first and
-nothing was written, so there is no transition to report and no reason to fail a
-run: the anchor is exactly as observed or unobserved as it was before.
+`Observed::Contended` prints and does not count — in both verbs. Another writer
+recorded first and nothing was written, so there is no transition to report and no
+reason to fail a run: the anchor is exactly as observed or unobserved as it was
+before. `check` lists contended anchors in their own section and JSON field rather
+than silently skipping them, because "the holder is observing this one" and "this
+one was looked at and is quiet" are different sentences; it still refuses to let
+the condition touch the exit code, since a red there would bill normal concurrency
+to CI.
 
 `check.rs#run` exits 1 for `handed` (a memory was actually delivered) or `unclaimed`
-(something moved with no memory bound at all) or one of the criteria/instrument
-diagnoses ([[check-drift]]) — but explicitly *not* for `quiet`: an anchor that moved on
-an axis no memory's `watch:` names is deliberately reported at exit 0, as "N anchors
-moved on axes nobody asked about — `gmr status` shows them." That distinction is the
-entire reason `check` computes `moved`/`quiet` separately instead of just counting
-transitions.
+(moved with no memory bound at all — and this obligation derives from the standing
+vector, not from this run's transition: a pass or sample that consumed the edge
+does not make an unbound moved anchor green, `observe.rs#unclaimed_due` holds that
+line, with shapeless states keeping the edge because nothing there says what
+settled means) or one of the criteria/instrument diagnoses ([[check-drift]]) — but
+explicitly *not* for `quiet`: an anchor that moved on an axis no memory's `watch:`
+names is deliberately reported at exit 0, as "N anchors moved on axes nobody asked
+about — `gmr status` shows them." That distinction is the entire reason `check`
+computes `moved`/`quiet` separately instead of just counting transitions.
 
 That exit-0 branch is real; the sentence quoting it is not always printed.
 `check`'s closing `match (handed.len(), quiet)` makes the two arms exclusive,

@@ -2549,6 +2549,71 @@ async fn a_citation_current_when_bound_stays_seen_after_the_world_later_moves() 
 }
 
 #[tokio::test]
+async fn an_inline_ask_citing_a_replaced_reading_is_superseded_not_seen() {
+    let w = World::new(true);
+    w.open("a").await;
+    let old = w
+        .runtime
+        .sample(&AnchorKey::new("a"), &gmr_runtime::Instructions::default())
+        .await
+        .unwrap()
+        .fact_address
+        .unwrap();
+    std::fs::write(w.dir.path().join("world.json"), r#"{"x":2}"#).unwrap();
+    w.runtime.observe(&AnchorKey::new("a")).await.unwrap();
+
+    let out = w
+        .runtime
+        .ground(
+            &[Asked::about(gmr_core::Claim::said("turn-inline-stale"))
+                .on([AnchorKey::new("a")])
+                .saw([old])],
+            &gmr_runtime::Instructions::default(),
+        )
+        .await
+        .unwrap();
+    let gmr_runtime::Anchored::On { evidence, .. } = &out[0].on[0] else {
+        panic!("{:?}", out[0].on)
+    };
+    assert!(
+        matches!(evidence.shown, gmr_runtime::Shown::Superseded { .. }),
+        "an unrecorded ask has no binding date, and comparing against nothing read every \
+         address in the anchor's history as seen. The ask is being made now, the anchor's \
+         current showing is in hand, and a citation the anchor has already replaced is \
+         built on its past whether or not the claim was ever stored: {:?}",
+        evidence.shown
+    );
+}
+
+#[tokio::test]
+async fn an_inline_ask_citing_the_current_reading_is_seen() {
+    let w = World::new(true);
+    w.open("a").await;
+    let saw = w
+        .runtime
+        .sample(&AnchorKey::new("a"), &gmr_runtime::Instructions::default())
+        .await
+        .unwrap()
+        .fact_address
+        .unwrap();
+
+    let out = w
+        .runtime
+        .ground(
+            &[Asked::about(gmr_core::Claim::said("turn-inline-fresh"))
+                .on([AnchorKey::new("a")])
+                .saw([saw])],
+            &gmr_runtime::Instructions::default(),
+        )
+        .await
+        .unwrap();
+    let gmr_runtime::Anchored::On { evidence, .. } = &out[0].on[0] else {
+        panic!("{:?}", out[0].on)
+    };
+    assert!(evidence.shown.is_seen(), "{:?}", evidence.shown);
+}
+
+#[tokio::test]
 async fn a_conclusion_whose_every_anchor_finished_is_counted_as_unsupervised() {
     let w = World::new(true);
     w.open("a").await;

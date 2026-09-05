@@ -114,7 +114,7 @@ pub(crate) async fn settled(
 ) -> Result<Vec<gmr::Ref>, CliError> {
     let bound = super::memories_on(rt, key).await?;
     if bound.is_empty() {
-        if moved {
+        if unclaimed_due(moved, to) {
             unclaimed.push(key.clone());
         }
         return Ok(Vec::new());
@@ -128,6 +128,13 @@ pub(crate) async fn settled(
         }
     }
     Ok(out)
+}
+
+pub(crate) fn unclaimed_due(moved: bool, state: &State) -> bool {
+    match crate::delivery::axes_set(state) {
+        Some(axes) => moved || !axes.is_empty(),
+        None => moved,
+    }
 }
 
 pub(crate) fn report_snags(snags: &[Snag]) {
@@ -155,4 +162,50 @@ pub(crate) fn report_unclaimed(unclaimed: &[AnchorKey]) {
 
 pub(crate) fn addressed_all(refs: &[gmr::Ref]) -> Vec<String> {
     refs.iter().map(crate::memories::addressed).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::unclaimed_due;
+    use gmr::State;
+
+    fn vectored(v: serde_json::Value) -> State {
+        State::new(serde_json::json!({ "position": {}, "v": v, "status": "x" }))
+    }
+
+    #[test]
+    fn a_set_bit_keeps_an_unbound_anchor_due_after_the_observation_that_set_it() {
+        let carried = vectored(serde_json::json!({ "sig": true, "logic": false }));
+        assert!(
+            unclaimed_due(false, &carried),
+            "the obligation is the standing vector, not this run's transition. Edge-triggered, \
+             a pass or sample that consumed the transition left every later check green while \
+             the anchor stayed moved with nothing bound to it — the silent-green shape the \
+             delivery path already refused"
+        );
+    }
+
+    #[test]
+    fn a_settled_vector_is_not_due_without_a_transition() {
+        let settled = vectored(serde_json::json!({ "sig": false, "logic": false }));
+        assert!(!unclaimed_due(false, &settled));
+    }
+
+    #[test]
+    fn a_transition_is_due_even_when_it_lands_settled() {
+        let settled = vectored(serde_json::json!({ "sig": false }));
+        assert!(unclaimed_due(true, &settled));
+    }
+
+    #[test]
+    fn a_shapeless_state_falls_back_to_the_transition_edge() {
+        let bare = State::new(serde_json::json!({ "position": {}, "n": 3, "status": "moved" }));
+        assert!(!unclaimed_due(false, &bare));
+        assert!(
+            unclaimed_due(true, &bare),
+            "no vector means nothing declares what settled looks like — the same boundary \
+             where delivery refuses to guess. The edge is a known downgrade there, not a rule \
+             worth inventing state semantics to avoid"
+        );
+    }
 }

@@ -9,19 +9,33 @@ pub async fn run(
     json: bool,
 ) -> Result<i32, CliError> {
     let path = names.of(&reference);
-    let others: Vec<Claim> = rt.cobound(&reference.clone().into()).await?;
+    let claim: Claim = reference.clone().into();
+    let anchors = rt.memory().binding_of(&claim).await?.anchors().to_vec();
+    let others: Vec<Claim> = rt.cobound(&claim).await?;
 
     if json {
         println!(
             "{}",
             serde_json::json!({
                 "path": path,
+                "anchors": anchors,
                 "cobound": others.iter().map(Claim::to_string).collect::<Vec<_>>(),
             })
         );
         return Ok(0);
     }
 
+    match anchors.is_empty() {
+        true => println!("{path} is bound to no anchor"),
+        false => println!(
+            "{path} is bound to {}",
+            anchors
+                .iter()
+                .map(|a| a.to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+    }
     if others.is_empty() {
         println!("{path} shares no anchor with any other bound claim");
     } else {

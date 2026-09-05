@@ -154,8 +154,13 @@ address is the reading the anchor was showing *then*. Later movement stays
 stays `Seen` however far the world moves afterwards. Content addressing gives
 this one free kindness — a world that flaps back restores the old address, and a
 citation of it is `Seen` again, because the anchor really is showing that
-reading. An undated binding has no comparison point and stays `Seen`; honest,
-because nothing can be said either way.
+reading. A binding with no date falls back to the anchor's *current* showing:
+an inline ask is being made now, and an undated old record can at least be told
+that what it cited is not what the anchor shows any more. Answering `Seen`
+there read every address anywhere in the history as being looked at, which let
+an unrecorded ask cite a reading replaced long ago and pass. Only when there is
+no current showing either does `Seen` stand on the bare fact the reading was
+taken — nothing more can be said either way.
 
 `Unseen` is the shape of a **second computation of the same fact**, running
 beside the anchor instead of through it. That is not hypothetical: a probe

@@ -236,7 +236,11 @@ impl Subscriptions {
             gmr::expr::Evaluated::Value(other) => Err(format!(
                 "`watch:` answered with {other}, which is not a yes or a no"
             )),
-            gmr::expr::Evaluated::Absent => Ok(false),
+            gmr::expr::Evaluated::Absent => Err(
+                "`watch:` answered with nothing at all — a path it reads is absent from this \
+                 state. Guard it with exists(...) if absence should mean not-yet"
+                    .to_owned(),
+            ),
             gmr::expr::Evaluated::Fault(f) => Err(format!("`watch:` could not be settled: {f:?}")),
         }
     }
@@ -329,6 +333,32 @@ mod tests {
             s.delivers("k", contract(), &at("git", "memories/b.md"), &carried)
                 .unwrap()
         );
+    }
+
+    #[test]
+    fn a_watch_that_answers_with_nothing_is_a_snag_not_a_quiet_no() {
+        let s = Subscriptions {
+            per_note: BTreeMap::from([(
+                at("git", "memories/a.md"),
+                gmr::expr::parse("state.flags.armed").unwrap(),
+            )]),
+            per_anchor: BTreeMap::new(),
+        };
+        let st = state(serde_json::json!({ "sig": false }));
+        assert!(
+            s.delivers("k", contract(), &at("git", "memories/a.md"), &st)
+                .is_err(),
+            "an absent answer is the expression failing to decide, not the memory deciding \
+             to stay quiet. Swallowing it as false was the one unevaluable outcome this \
+             layer converted into a verdict"
+        );
+    }
+
+    #[test]
+    fn the_exists_guard_still_reads_absence_as_a_quiet_no() {
+        let s = narrowed(&["armed"]);
+        let st = state(serde_json::json!({ "sig": false }));
+        assert!(!hands(&s, &at("git", "memories/a.md"), &st));
     }
 
     #[test]

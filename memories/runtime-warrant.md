@@ -217,10 +217,16 @@ genuinely was no ground yet.
 of them mean — `v.sig` is a path, not a word it understands — so this stays
 inside rule 4's "no fixed state vocabulary".
 
-`position` and `status` are excluded at the top level. Both are core constants
-the base is allowed to know without interpreting (rules 2 and 3): `position` is
-where we looked rather than what we found, and `status` is the summary the rule
-table already wrote from the rest.
+`position` is excluded at the top level — it is where we looked rather than
+what we found, a core constant the base may know without interpreting (rules 2
+and 3). `status` is excluded only when something else also differs: there it is
+the summary the rule table wrote from the rest, and counting it would report one
+movement twice. When status is the *only* divergence there is no "rest" that
+wrote it — a hand-written table may produce a complete state of exactly
+`position` and `status`, and skipping it unconditionally made every transition
+of such an anchor diff empty, so a claim bound to it answered `Holds` while the
+anchor said breached. The sole-divergence case is the whole signal and is
+reported.
 
 `differing` walks arrays as well as objects, by index. It stopped at arrays
 once, and a reading that is a *list* of things — a menu, a roster, a price table
