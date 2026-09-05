@@ -7,6 +7,7 @@ pub async fn run(
     id: Option<String>,
     retire: bool,
     fresher_than_secs: Option<u64>,
+    reach: Option<usize>,
     json: bool,
 ) -> Result<i32, CliError> {
     let claims: Vec<Claim> = match &id {
@@ -50,11 +51,10 @@ pub async fn run(
                     .cloned()
                     .map(gmr::Asked::about)
                     .collect::<Vec<_>>(),
-                &match fresher_than_secs {
-                    Some(secs) => {
-                        gmr::Instructions::fresher_than(std::time::Duration::from_secs(secs))
-                    }
-                    None => gmr::Instructions::default(),
+                &gmr::Instructions {
+                    max_staleness: fresher_than_secs.map(std::time::Duration::from_secs),
+                    reach,
+                    ..gmr::Instructions::default()
                 },
             )
             .await?
@@ -112,6 +112,20 @@ pub async fn run(
                 println!("    depends: nothing was stated, and the ground moved — re-read this one")
             }
             Depends::Unstated => {}
+        }
+        for reached in &one.reached {
+            println!(
+                "    reaches {} ({}) — {:?}, {} hop(s) away",
+                reached.reference,
+                reached
+                    .via
+                    .iter()
+                    .map(|k| k.0.as_str())
+                    .collect::<Vec<_>>()
+                    .join(" → "),
+                reached.footing,
+                reached.depth
+            );
         }
     }
 

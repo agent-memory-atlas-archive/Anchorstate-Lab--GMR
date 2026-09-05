@@ -154,6 +154,11 @@ pub enum Command {
         /// stored readings, whatever their age.
         #[arg(long)]
         fresher_than_secs: Option<u64>,
+        /// Walk this many hops of memory links from each stored claim and
+        /// report the records reached whose footing is no longer current,
+        /// with the path that led to each.
+        #[arg(long)]
+        reach: Option<usize>,
     },
 
     /// Write every anchor, every memory and what binds them as one HTML page.
@@ -214,6 +219,10 @@ pub enum Command {
         /// when a warrant makes it worth reading.
         #[arg(long)]
         lean: bool,
+        /// Carry records one link away from each bound memory into the answer,
+        /// marked as carrying no local guarantee.
+        #[arg(long)]
+        carry: bool,
     },
 
     /// Accept what an anchor now shows: re-pin its baseline, or take the

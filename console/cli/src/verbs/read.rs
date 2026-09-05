@@ -8,11 +8,13 @@ pub async fn run(
     key: Option<String>,
     fresher_than_secs: Option<u64>,
     lean: bool,
+    carry: bool,
     json: bool,
 ) -> Result<i32, CliError> {
     let how = Instructions {
         max_staleness: fresher_than_secs.map(std::time::Duration::from_secs),
         lean,
+        carry,
         ..Instructions::default()
     };
     let views = match key {
