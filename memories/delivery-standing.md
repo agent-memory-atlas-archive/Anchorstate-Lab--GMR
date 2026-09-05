@@ -19,17 +19,26 @@ section it watched did not exist), `doctor` printed `section-gonex1`, and `check
 exited 0 — **CI was green**. After a signature change, running check twice gave
 "nothing moved" the second time while `status` still had `v.sig` raised.
 
-There are two paths now, **divided by whether the anchor has a shape, not by guessing
-from what the state looks like**:
+There are three paths now, **divided by what is declared, not by guessing from what
+the state looks like**:
 
 | | criterion | who decides |
 |---|---|---|
-| has a shape | is any subscribed bit set | bits accumulate; `accept` clears them |
-| hand-written rules (`of()` returns `None`) | fall back to the edge: hand it back only if it transitioned this time | — |
+| a `watch:` on the note or the anchor | the compiled expression over the state | its author |
+| a shape and no `watch:` | is any subscribed bit set | bits accumulate; `accept` clears them |
+| hand-written rules and no `watch:` (`of()` returns `None`) | refuse to answer | nobody declared when the memory should return |
 
-The second has to stay. A hand-written rule table has nobody declaring what counts as
-settled, so level triggering on it would mean "never green". Falling back to the edge
-is a **known downgrade**, not an oversight.
+The refusal in the third row replaced an edge fallback that once lived there.
+Delivering on the transition edge announced the obligation once and lost it;
+staying quiet lost the memory. Neither is an answer this layer may invent, so the
+missing subscription is reported against the declaration (`watch-missing`) and a
+delivery question that still arrives is a snag, not a verdict.
+
+An expression that evaluates to `Absent` is a snag for the same reason: an absent
+answer is the expression failing to decide, not the memory deciding to stay quiet,
+and swallowing it as "no" was the one unevaluable outcome this layer converted
+into a verdict. The evaluator short-circuits `and`/`or`, so the canonical
+`exists(state.v.x) and state.v.x` guard still reads absence as a decided no.
 
 There was once a third — table shapes leaned on a hand-written `settled` allowlist.
 That was a product of the dual track: two answers to one question (does this state
@@ -69,8 +78,8 @@ had no subscriptions — add a status to the vocabulary and forget the allowlist
 anchor is handed back forever; forget to remove one and the anchor goes silent
 forever. **One of two answers always gets forgotten, so keep only the derived one.**
 
-The third path gets deleted (say, "if we do not recognise it, call it settled") →
-hand-written-rules anchors go silent forever. The reverse, "if we do not recognise it,
-call it unsettled" → they exit 1 forever. Both are wrong, so this has to be three
-branches. And "do not recognise" now has a second meaning — the criteria drifted; see
+The refusal gets softened (say, "if nothing is declared, call it settled") →
+hand-written-rules anchors go silent forever. The reverse, "call it unsettled" →
+they exit 1 forever. Both are wrong, which is why the undeclared case answers with
+neither. And "do not recognise" has a second meaning — the criteria drifted; see
 [[check-drift]].
