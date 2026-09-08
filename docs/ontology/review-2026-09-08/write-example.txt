@@ -1,0 +1,22 @@
+@Decision carry-one-hop ~h
+claim: relevance beyond one hop is the domain's judgment, not the substrate's.
+rationale: what should I hand this reader gets longer and vaguer with every hop, and the substrate has no basis for relevance.
+ask: does the new code recurse past one hop?
+>decided_by⁻¹ Function:crates/gmr-runtime/src/memory.rs#carry_linked
+@Decision carry-is-opt-in ~h
+claim: the linked walk runs only when Instructions.carry asks; silence means not at all.
+rationale: a store read per record on every read path is a cost no caller should pay unasked, and mixing mentions into aboutness dilutes attention.
+ask: does the walk run without carry being asked for?
+>decided_by⁻¹ Function:crates/gmr-runtime/src/memory.rs#carry_linked
+>decided_by⁻¹ Field:crates/gmr-runtime/src/read.rs#Instructions.carry
+@Decision carry-shares-budget ~h
+claim: carried records narrow a slice of the caller's total budget and mint no second total.
+rationale: a second total lets one read spend twice what its caller allowed, on the half of the walk nobody asked for record by record.
+ask: does carry_linked take a budget that is not a slice of the caller's total?
+>decided_by⁻¹ Function:crates/gmr-runtime/src/memory.rs#carry_linked
+>governed_by⁻¹ Policy:content-budget
+@Function crates/gmr-runtime/src/memory.rs#carry_linked ~a
+contract: gated by Instructions.carry; narrows a slice of the caller's total Budget per record and mints no total of its own. ~a
+>reads Field:crates/gmr-runtime/src/read.rs#Instructions.carry ~a
+~h human zongming decided 2026-08-22
+~a agent task-0912 observed fcfcce7f

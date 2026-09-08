@@ -1,0 +1,15 @@
+@Function crates/gmr-runtime/src/memory.rs#carry_linked =fcfcce7f ~a
+purpose: carries records linked from an already-delivered memory into the answer, one hop, when asked. ~a
+!contract: gated by Instructions.carry; narrows a slice of the caller's total Budget per record and mints no total of its own. ~a
+fails_by: a store call that outruns its slice is reported unreachable, never dropped silently. ~a
+>reads Field:crates/gmr-runtime/src/read.rs#Instructions.carry ~a
+>governed_by Policy:content-budget ~b
+ claim: one operation has one content total; every walk narrows a slice of it.
+>decided_by Decision:carry-one-hop ~b
+ claim: relevance beyond one hop is the domain's judgment, not the substrate's.
+ ask: does the new code recurse past one hop, or walk without carry being asked?
+>verified_by Test:crates/gmr-runtime/tests/grounding.rs#carrying_linked_records_is_asked_for_and_they_come_back_marked ~a
+<calls Function:crates/gmr-runtime/src/read.rs#ground ~p
+~a agent task-0912 observed fcfcce7f@61850 !stale sig,body @62437
+~b human zongming decided 2026-08-22
+~p probe callers,tests now
