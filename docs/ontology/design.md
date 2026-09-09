@@ -10,7 +10,7 @@
 - 【决定】owner 于 2026-09-09 的访谈中做出，第 18 节汇总。改动它们走 CLAUDE.md §7。
 - 【设计】由决定推出的规格，可以直接实现。
 
-`coding-v1.yaml`、`migration-trial.md`、`migration-full.md` 保留为迁移的输入；它们与本文冲突之处，以本文第 11 节的 v1.1 清单为准。
+`migration-full.md` 保留为迁移的输入；它把笔记映射到的槽位名与关系名，以本文第 11 节为准。
 
 ---
 
@@ -414,26 +414,19 @@ Claude API 应用的门。一个 `/memories` 处理器，六个命令映射到�
 | 来源形式 | observed、reviewed:commit、decided | observed、published、decided | published、decided | user-said |
 | 谁算人 | owner | owner | 律师 | 用户本人 |
 
-### 11.1 coding v1.1
+### 11.1 coding 本体文件
 
-【设计】coding-v1.yaml 是输入，v1.1 在它之上改十四处：
+【设计】coding 的领域本体是一个文件，`packs/coding/ontology.yaml`，由 gmr-net 的 write 读取，在 Phase 0 创建（第 15 节）。它有读者之前不存在于仓库里。它必须声明：
 
-1. Function 的键从 `path#name(shape)` 改为 4.3 的 id，shape 是观察属性。
-2. 每种关系标 `source: observed` 或 `asserted`；calls、imports、contains、implements、reads、exposes 从 relations 移到 readings，由探针物化，write 拒绝 agent 写它们。
-3. 加 Concept、realizes、`Policy.about → Concept`；must_change_with 保留为兜底且必带 reason，同一 reason 第二次出现时 write 提示命名为 Concept。
-4. Claim 的 standing 由 stale 推得，about 必填改为 rests_on 必填。
-5. 每实体每关系的 `complete` 声明，作为负信息交付。
-6. Decision 和 Policy 加 standing，值有 live 与 retired。
-7. 加 Dependency 实体，键为 crate 或服务名。
-8. 加 File.role 槽位。
-9. Test 可以是 governed_by 与 decided_by 的起点。
-10. 加 enforced_by 关系，Policy → Function、Config、Test。
-11. 加 Constant 实体，键 `path#NAME`。
-12. 加 requests 关系，Function → Endpoint。
-13. Config 的键允许 `env#NAME`。
-14. 关于 Claim 如何书写的规则是本体文件的公理，不是 Policy 实例。
+- 实体与键形：Module（path）、File（path）、Function、Type、Field、Test、Constant（`path#NAME`）、Format（name）、Endpoint（method path）、Table（db.table）、Config（`path#key` 或 `env#NAME`）、Dependency（crate 或服务名）、Policy、Incident、Owner、Claim、Concept。Function、Type、Field、Test 的键是 4.3 的 id，shape 是观察属性。
+- 槽位：每个实体的一句话槽位及其接受的来源类；Decision 与 Policy 带 claim、rationale、review_question、valid_from、standing（live 或 retired）；File 带 role；Concept 带 definition。
+- 关系，每种标 asserted：produces、consumes、verified_by、governed_by、decided_by、must_change_with（必带 reason；同一 reason 第二次出现时 write 提示命名为 Concept）、caused、owned_by、enforced_by（Policy → Function、Config、Test）、requests（Function → Endpoint）、realizes、supersedes、contradicts、rests_on。Test 可以是 governed_by 与 decided_by 的起点。
+- 读数，不可写：calls、imports、contains、implements、reads、exposes 由探针物化，write 拒绝 agent 写它们。
+- 来源形式：observed、reviewed、decided。谁算人：owner。
+- 每实体每关系可声明 complete，作为负信息交付。
+- 关于 Claim 如何书写的规则是本体文件的公理，不是 Policy 实例。
 
-其中 1 到 5 来自 2026-09-08 的审查，6 到 14 来自 migration-full.md 的 v1.1 清单。
+它不含动作签名，那是读模型（第 8 节）；不含 not_memory 散文，那是入口卡的内容。
 
 ### 11.2 coding 的探针
 
@@ -471,9 +464,9 @@ Claude API 应用的门。一个 `/memories` 处理器，六个命令映射到�
 4. 关于被删机制的 52 篇，判断照迁，standing 标 retired。
 5. 每一行过 write。过不去的列表交 owner。
 6. owner 审 PR，划掉的条目降为 agent Claim 或丢弃，合并。
-7. 需要 v1.1 才有槽位的 13 篇进第二批。
+7. 需要 11.1 清单在草案之外新增槽位的 13 篇进第二批。
 
-【现状】memories/ 的 50 次提交全部由 owner 提交，所以每篇笔记在 git 里已经是 owner 审过的东西。migration-full.md 拆出 714 条 Decision 与 Policy，其中 Policy 175 条、带 review question 305 条；499 个槽位值，1,049 条边；131 篇按原样可入槽，52 篇关于被删机制，13 篇需要 v1.1；单模型一遍、未经复核，714 是下限。
+【现状】memories/ 的 50 次提交全部由 owner 提交，所以每篇笔记在 git 里已经是 owner 审过的东西。migration-full.md 拆出 714 条 Decision 与 Policy，其中 Policy 175 条、带 review question 305 条；499 个槽位值，1,049 条边；131 篇按原样可入槽，52 篇关于被删机制，13 篇需要草案之外新增的槽位；单模型一遍、未经复核，714 是下限。
 
 【现状】今天 bindings 里带 depends 的 10 条中 9 条引用了 `state.v.*` 粘滞位。迁移后 `v.*` 消失，这 9 条的语义变为对应的 now 路径。
 
