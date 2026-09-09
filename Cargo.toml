@@ -13,6 +13,7 @@ members = [
     "batteries/survey",
     "batteries/atlas",
     "packs/coding/extract",
+    "packs/coding/shapes",
     "console/core",
     "console/cli",
     "console/node",

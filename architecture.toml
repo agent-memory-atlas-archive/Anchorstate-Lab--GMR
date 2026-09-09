@@ -130,6 +130,12 @@ kind  = "package"
 path  = "packs/coding/extract"
 
 [[member]]
+name  = "gmr-coding-shapes"
+layer = "domain"
+kind  = "package"
+path  = "packs/coding/shapes"
+
+[[member]]
 name  = "gmr-cli"
 layer = "domain"
 kind  = "package"

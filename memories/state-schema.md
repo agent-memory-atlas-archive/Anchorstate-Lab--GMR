@@ -1,7 +1,7 @@
 ---
 about:
-  - console/cli/src/shapes.rs#seen
-  - console/cli/src/shapes.rs#state_carries_exactly_what_some_guard_compares_and_nothing_else
+  - packs/coding/shapes/src/lib.rs#seen
+  - packs/coding/shapes/src/lib.rs#state_carries_exactly_what_some_guard_compares_and_nothing_else
 watch: [sig, logic]
 ---
 
@@ -41,6 +41,14 @@ for `gmr status` to be able to show which line a section is on, so it went into
 they ride into the log with the observation, and `facts` is there every time. If it
 is for a person to look at, take it from the observation; do not house it in the
 state. Fill a rendering gap with rendering, not with state.
+
+The `-dwell` shapes carry four more at the top level: `phase` · `moved_count` ·
+`last_moved_at` · `last_present`. Each one is read by a guard — `phase` by the flux
+and return rules, `last_moved_at` by the dwell window, `last_present` by the returned
+and replaced rules, `moved_count` by the initialisation rule's `exists` — and each
+changes only in a rule that also changes `now` or `phase`, so none of them can write a
+Transition on its own. The same test pins both key sets, five for the base shapes and
+nine for the dwell ones.
 
 A corollary: wanting to add an axis means working out at the same time what it
 compares against. `Now` axes (like `missing`) write no `baseline`/`now`, so they do

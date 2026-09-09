@@ -29,7 +29,13 @@ pub async fn run(
     };
 
     if json {
-        println!("{}", serde_json::to_string_pretty(&views)?);
+        let mut out = serde_json::to_value(&views)?;
+        if let Some(items) = out.as_array_mut() {
+            for item in items {
+                render::rules_as_hash(item)?;
+            }
+        }
+        println!("{}", serde_json::to_string_pretty(&out)?);
     } else if views.is_empty() {
         println!("no anchors.");
     } else {
