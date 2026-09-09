@@ -171,6 +171,85 @@ corrected score.
 
 ---
 
+## 4. Falsifier (`tools/falsify`), 2026-09-09
+
+**Question.** design.md §8 claims that agents writing back as part of finishing
+tasks make a later agent on the same code read less outside what the net hands
+it. Criterion pre-registered in `tools/falsify/criterion.md` before any run;
+tasks pre-registered in `tools/falsify/tasks.md`.
+
+**Design.** Ten real gmr-core tasks (rule-table hashing, optional revise
+context, path hashing, path diffs, stale paths), the same order in two arms,
+one fresh `claude -p` (sonnet) per cell, code accumulating within an arm when
+tests pass. **net**: a net seeded from the 26 gmr-core notes with rows in
+migration-full.md (56 Decisions, 18 Policies, 148 edges) and three commands
+(walk, write, check); the gmr skill removed. **ctl**: today's SKILL.md and the
+gmr binary. Both arms had every tool and the whole repository. Four numbers per
+cell: bytes that entered the context outside the memory channel before the
+first edit, `cargo test -p gmr-core`, writes landed / attempted (net), stale
+records (net).
+
+**Results.**
+
+| task | net outside | ctl outside | tests (both) | net writes | net stale | cost net / ctl |
+|---|---|---|---|---|---|---|
+| 1 | 24,284 | 34,759 | pass | 1/1 | 59 | 1.92 / 0.87 |
+| 2 | 47,337 | 65,884 | pass | 1/1 | 140 | 2.08 / 0.83 |
+| 3 | 37,793 | 69,266 | pass | 1/1 | 177 | 1.15 / 0.58 |
+| 4 | 36,351 | 36,966 | pass | 1/1 | 179 | 1.24 / 0.54 |
+| 5 | 37,822 | 49,761 | pass | 1/1 | 179 | 1.24 / 0.72 |
+| 6 | 23,157 | 47,797 | pass | 1/1 | 267 | 1.94 / 0.61 |
+| 7 | 30,220 | 50,210 | pass | 1/1 | 267 | 1.38 / 0.74 |
+| 8 | 23,207 | 55,240 | pass | 1/1 | 272 | 1.65 / 0.55 |
+| 9 | 68,056 | 104,872 | pass | 1/2 | 277 | 1.49 / 0.68 |
+| 10 | 28,253 | 26,517 | pass | 1/1 | 279 | 0.98 / 0.87 |
+
+net arm outside bytes: tasks 1–5 mean 36,717, tasks 6–10 mean 34,579, ratio
+0.94. Writes landed 10/11 (the one refusal was E08, one sentence; the agent
+rewrote and landed it). Both arms passed every task's tests. The ctl arm made
+zero write-back calls (`said`, `anchor -m`, `bind`…) in ten tasks, having read
+SKILL.md in full in tasks 1 and 5.
+
+**Verdict: FALSIFIED** on the first pre-registered condition (ratio 0.94, the
+criterion required below 0.70); the second condition (at least half of writes
+landing) passed. Per design.md §14 and §15, Phase 1 does not start on this
+result; what returns to design is the owner's call.
+
+**What the data says beyond the verdict** (observations, not a re-tuning):
+
+- The net arm read less outside the channel than the ctl arm in 9 of 10 tasks
+  (medians 33 KB vs 50 KB), and the ctl arm's reading rose in the second half
+  (51 KB → 57 KB) while the net arm's did not. The net helps at a constant
+  level; ten tasks of use did not make it help more.
+- Cost and turns: net $15.07 vs ctl $6.97; net averaged 41 turns, ctl 23.
+- A confound was measured and does not change the verdict: net agents read the
+  harness scripts themselves (walk.py, validate.py, ontology.yaml) in four
+  tasks, up to 6.8 KB before the first edit; subtracting it gives ratio 0.92.
+- Why no trend, from the transcripts: tasks 6–10 each add a function that did
+  not exist before, so nothing written earlier could describe it; the bytes
+  before the first edit are the file being edited. Tasks 9 and 10 did walk the
+  `hash_at`, `hashes_at` and `stale_paths` records tasks 6–8 wrote, and still
+  read journal.rs and addr.rs whole (68 KB in task 9; ctl read 105 KB).
+- Findings for the design, each a defect this run exposed: (1) E07 requires an
+  address the runtime issued, and Phase 0 issued addresses only for nodes
+  already in the net, so task 1's Claim rested on `addr.rs#write_array` rather
+  than the `Transitions` it was about; a read entry must issue an address for
+  any coordinate. (2) Whole-address rests_on over-reports: stale grew 59 → 279
+  because one edit moves the `place` reading of every later symbol in the file;
+  the path form is the fix, and tasks 6–10 built its primitives. (3) walk takes
+  an exact key and there is no locate; agents guessed keys (`journal.rs#Entry`,
+  `addr.rs#value_at`) and lost turns.
+
+**What this run cannot say.** Whether a sequence that revisits the same
+functions, rather than adding new ones to the same files, would show the
+decline; that is a different pre-registered sequence, not a re-run of this
+one. One run per arm; the per-task numbers have visible variance (task 9).
+
+Raw data: `tools/falsify/results-2026-09.jsonl` (committed); transcripts,
+working copies and the grown net under `.anchor/output/falsify/` (gitignored).
+
+---
+
 ## Methodology incidents (all corrected before final numbers)
 
 - A2's first run read deleted memories out of **git history**; fixed by
@@ -197,5 +276,8 @@ Prompts are verbatim in each harness's `run.sh`.
   the corpus-maturity gauge.
 - The delivery or unclaimed semantics change → **msis s4** is the regression
   pin (mechanical, no LLM cost).
+- The falsifier (§4) is not re-run as it stands. A sequence of tasks that
+  revisit the same functions, a read entry that issues addresses for any
+  coordinate, and path-level rests_on each earn a **new** pre-registered run.
 - Everything else here is settled for this task family; new questions deserve
   new fixtures, not repeats of these.
