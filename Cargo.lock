@@ -628,6 +628,7 @@ dependencies = [
  "gmr",
  "gmr-atlas",
  "gmr-coding-pack",
+ "gmr-coding-shapes",
  "gmr-provider",
  "gmr-survey",
  "gmr-transport",
@@ -657,6 +658,18 @@ dependencies = [
  "tree-sitter-python",
  "tree-sitter-rust",
  "tree-sitter-typescript",
+]
+
+[[package]]
+name = "gmr-coding-shapes"
+version = "0.6.4"
+dependencies = [
+ "gmr-coding-pack",
+ "gmr-core",
+ "gmr-expr",
+ "gmr-survey",
+ "gmr-transport",
+ "serde_json",
 ]
 
 [[package]]

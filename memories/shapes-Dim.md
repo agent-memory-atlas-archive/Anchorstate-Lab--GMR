@@ -1,9 +1,9 @@
 ---
 about:
-  - console/cli/src/shapes.rs#Dim
-  - console/cli/src/shapes.rs#Reads
-  - console/cli/src/shapes.rs#CONTRACT
-  - console/cli/src/shapes.rs#GONE
+  - packs/coding/shapes/src/lib.rs#Dim
+  - packs/coding/shapes/src/lib.rs#Reads
+  - packs/coding/shapes/src/lib.rs#CONTRACT
+  - packs/coding/shapes/src/lib.rs#GONE
   - packs/coding/extract/src/ast.rs#RECIPE
 ---
 
