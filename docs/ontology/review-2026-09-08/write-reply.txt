@@ -1,5 +1,0 @@
-+ Decision:carry-one-hop
-+ Decision:carry-is-opt-in
-+ Decision:carry-shares-budget
-+ Function:…#carry_linked.contract @62501
-+ 4 edges
