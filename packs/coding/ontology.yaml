@@ -1,0 +1,142 @@
+ontology: gmr-coding
+version: 2
+
+human: [zongming]
+
+sources: [observed, decided, reviewed, user-said, published]
+
+keys:
+  path: '^[^#\s]+$'
+  path#name: '^[^#\s]+#[A-Za-z_][A-Za-z0-9_:]*$'
+  path#Type.name: '^[^#\s]+#[A-Za-z_][A-Za-z0-9_:]*\.[A-Za-z_][A-Za-z0-9_]*$'
+  path#NAME: '^[^#\s]+#[A-Z_][A-Z0-9_]*$'
+  name: '^[A-Za-z0-9_./:-]+$'
+  id: '^[a-z0-9][a-z0-9-]*$'
+  method path: '^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) /\S*$'
+  db.table: '^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$'
+  config: '^([^#\s]+#[^\s]+|env#[A-Z_][A-Z0-9_]*)$'
+  handle: '^[a-z0-9][a-z0-9_-]*$'
+
+entities:
+  Module:
+    key: path
+    probe: true
+    slots:
+      role: {sources: [observed, reviewed]}
+      boundary: {sources: [decided, reviewed]}
+  File:
+    key: path
+    probe: true
+    slots:
+      role: {sources: [observed, reviewed]}
+  Function:
+    key: path#name
+    probe: true
+    slots:
+      purpose: {sources: [observed, reviewed]}
+      contract: {sources: [observed, reviewed]}
+      fails_by: {sources: [observed, reviewed]}
+  Type:
+    key: path#name
+    probe: true
+    slots:
+      means: {sources: [observed, reviewed]}
+      invariant: {sources: [decided, reviewed]}
+  Field:
+    key: path#Type.name
+    probe: true
+    slots:
+      means: {sources: [observed, reviewed]}
+      unit: {sources: [observed, reviewed]}
+  Test:
+    key: path#name
+    probe: true
+    slots:
+      proves: {sources: [observed, reviewed]}
+  Constant:
+    key: path#NAME
+    probe: true
+    slots:
+      means: {sources: [observed, reviewed]}
+  Format:
+    key: name
+    slots:
+      shape: {sources: [observed, reviewed]}
+  Endpoint:
+    key: method path
+    slots:
+      contract: {sources: [observed, reviewed]}
+  Table:
+    key: db.table
+    slots:
+      means: {sources: [observed, reviewed]}
+  Config:
+    key: config
+    slots:
+      controls: {sources: [observed, reviewed], units: allowed}
+  Dependency:
+    key: name
+    slots:
+      relied_on: {sources: [observed, reviewed]}
+  Policy:
+    key: id
+    slots:
+      claim: {sources: [decided, reviewed], required: true, human: true}
+      rationale: {sources: [decided, reviewed], required: true, sentence: false}
+      review_question: {sources: [decided, reviewed]}
+      enforcement: {sources: [decided, reviewed], values: [mechanical, review]}
+      valid_from: {sources: [decided, reviewed], date: allowed}
+      standing: {sources: [decided, reviewed], values: [live, retired]}
+  Decision:
+    key: id
+    slots:
+      claim: {sources: [decided, reviewed], required: true, human: true}
+      rationale: {sources: [decided, reviewed], required: true, sentence: false}
+      review_question: {sources: [decided, reviewed]}
+      valid_from: {sources: [decided, reviewed], date: allowed}
+      standing: {sources: [decided, reviewed], values: [live, retired]}
+  Incident:
+    key: id
+    slots:
+      what_happened: {sources: [decided, reviewed], required: true, sentence: false}
+      at: {sources: [decided, reviewed], date: allowed}
+      resolved_by: {sources: [decided, reviewed]}
+  Owner:
+    key: handle
+    slots: {}
+  Claim:
+    key: id
+    author: agent
+    rests_on: required
+    task: required
+    slots:
+      text: {sources: [observed], required: true}
+  Concept:
+    key: name
+    slots:
+      definition: {sources: [observed, decided, reviewed], required: true}
+
+relations:
+  produces: {from: [Function, Module], to: [Format]}
+  consumes: {from: [Function, Module], to: [Format]}
+  verified_by: {from: [Function, Type, Format, Policy, Decision, Test], to: [Test]}
+  governed_by: {from: [Module, File, Function, Type, Field, Format, Endpoint, Table, Config, Test, Constant, Concept], to: [Policy]}
+  decided_by: {from: [Module, File, Function, Type, Field, Format, Endpoint, Table, Config, Test, Constant, Concept], to: [Decision]}
+  must_change_with: {from: any, to: any, symmetric: true, reason: required}
+  caused: {from: [Incident], to: [Policy, Decision]}
+  owned_by: {from: [Module], to: [Owner]}
+  enforced_by: {from: [Policy], to: [Function, Config, Test]}
+  requests: {from: [Function], to: [Endpoint]}
+  realizes: {from: any, to: [Concept]}
+  supersedes: {from: [Policy, Decision, Claim], to: same_kind}
+  contradicts: {from: [Claim, Decision, Policy], to: [Claim, Decision, Policy], symmetric: true}
+  rests_on: {from: [Claim, Decision, Policy], to: any}
+
+readings: [calls, imports, contains, implements, reads, exposes]
+
+complete: allowed
+
+axioms:
+  - A Claim is written by an agent, carries its task and rests_on, and is never promoted without a person.
+  - A reading is what a probe reports; no writer may assert one.
+  - Whoever writes decided is declaring, not being verified; the tool acts on declarations.
