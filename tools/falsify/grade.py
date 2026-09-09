@@ -41,8 +41,11 @@ def main():
         ratio = late / early if early else None
         print(f"net arm outside bytes: tasks 1-5 mean {early:.0f}, tasks 6-10 mean {late:.0f}, ratio {ratio if ratio is None else round(ratio, 2)}")
     print(f"net arm writes landed: {landed}/{attempted}")
+    empty = [k for k, r in latest.items() if not r["meter"].get("calls")]
     complete = all(latest.get(("net", t)) for t in range(1, 11))
-    if complete:
+    if empty:
+        print(f"verdict: invalid, {len(empty)} cells have no transcript: {sorted(empty)}")
+    elif complete:
         falsified = (late is None or early is None or early == 0 or late / early >= 0.7) or (attempted and landed / attempted < 0.5)
         print("verdict:", "FALSIFIED" if falsified else "survives")
     else:

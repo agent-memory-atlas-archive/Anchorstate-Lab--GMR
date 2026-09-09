@@ -60,12 +60,21 @@ else
   preamble="This repository is managed by gmr; read .claude/skills/gmr/SKILL.md first and use it the way it says, before reading code and when you finish. The gmr binary is at $GMR_BIN."
 fi
 
-( cd "$WORK" && timeout "$TIMEOUT" "$CLAUDE_BIN" -p "$preamble
+if command -v timeout >/dev/null 2>&1; then LIMIT=(timeout "$TIMEOUT")
+elif command -v gtimeout >/dev/null 2>&1; then LIMIT=(gtimeout "$TIMEOUT")
+else LIMIT=(perl -e 'alarm shift; exec @ARGV' "$TIMEOUT"); fi
+
+( cd "$WORK" && "${LIMIT[@]}" "$CLAUDE_BIN" -p "$preamble
 
 $common
 
 $task_text" --model "$MODEL" --allowedTools Bash Read Grep Glob Edit Write MultiEdit \
   --output-format stream-json --verbose ) >"$OUT/$RUN.stream.jsonl" 2>"$OUT/$RUN.stderr.txt" || true
+
+if [ ! -s "$OUT/$RUN.stream.jsonl" ]; then
+  echo "$RUN: claude produced no transcript; see $OUT/$RUN.stderr.txt" >&2
+  exit 3
+fi
 
 tests=0
 ( cd "$WORK" && cargo test -p gmr-core -q >"$OUT/$RUN.tests.txt" 2>&1 ) && tests=1
