@@ -24,7 +24,7 @@ person, which is why `check` says "re-read it" and `accept` demands a sealed
 `--why`. An inference whose stated condition failed needs nobody: the sentence is
 simply no longer supported, and there is nothing to re-read.
 
-## Two loops, and merging them makes one of them lie
+## Two loops, and the copy that nothing watches
 
 ```
 memory     check  -> handed back -> a person re-reads -> accept --why
@@ -37,12 +37,20 @@ expression language, and it looked obvious that one should be built out of the
 other — compile each note's `watch:` into a `depends` at `sync` time and have
 `check` read it back from the store.
 
-That is writing a **memory's criteria into the inference slot**. `check`'s whole
-job is comparing code against memory; pointed at the store it would compare code
-against *a copy of the memory taken at the last sync*. The one drift this system
-exists to catch, manufactured in the checker. And the reverse merge — keeping an
-inference as if it were memory — promotes a one-shot conclusion into a constraint
-nobody reviewed.
+What breaks is not that two loops became one. It is that `depends` would be **a
+copy nothing watches**. `check`'s whole job is comparing code against memory;
+pointed at the store it would compare code against *a copy of the memory taken at
+the last sync*, and nothing in the system compares that copy back to the note. The
+one drift this system exists to catch, manufactured in the checker.
+
+So the test for any derived copy is **does something watch it against its
+source**, not how many loops there are. A binding's `rests_on` paths are derived
+from the same `watch:` and are safe under it: the binding records `bound_version`
+and `memory.rs` fetches the note at that version, so the note moving is visible.
+`depends` records nothing of the kind.
+
+And the reverse merge — keeping an inference as if it were memory — promotes a
+one-shot conclusion into a constraint nobody reviewed.
 
 The polarities differ for the same reason, and it is not an inconsistency to be
 tidied away. `watch:` is true when the memory must come back; `depends` is true
@@ -53,7 +61,10 @@ holds" are not the same predicate wearing two signs.
 
 **A memory's criteria live in the repository**, in the file, read fresh — so
 editing `watch:` takes effect on the next `check` with no build step between the
-author and the checker.
+author and the checker. A binding may still store the paths that `watch:`
+produced, because `bound_version` keeps that copy answerable to the file; what
+may not happen is `check` reading the criteria out of the store instead of the
+file.
 
 **An inference's criteria live in the append-only log** — unchangeable, because
 they are not a source of truth to be re-read but evidence of what was believed at
@@ -67,7 +78,7 @@ for itself ([[store-binding-record]]). A `depends` written by `sync` under
 ## When this changes, ask
 
 Does something start deriving one layer from another? Ask which failure mode the
-derived copy now has. A memory derived from a fact is redundant; an inference
+derived copy now has, and whether anything watches the copy against its source. A memory derived from a fact is redundant; an inference
 kept as memory is unreviewed; a memory read out of the inference log is the
 checker checking against itself.
 
