@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::addr::ContentHash;
-use crate::anchor::{Anchor, State, StatusId, Transitions};
+use crate::anchor::{Anchor, AnchorKey, State, StatusId, Transitions};
 use crate::probe::{Derivation, FactAddress, Facts, Outcome, ProbeRef};
 
 pub type Seq = u64;
@@ -29,6 +29,66 @@ impl Observation {
             Outcome::Found { facts } => Some(facts),
             Outcome::NotFound => None,
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Reading {
+    pub address: FactAddress,
+    pub outcome: Outcome,
+    pub versions: Versions,
+}
+
+impl Reading {
+    pub fn of(observation: &Observation) -> Self {
+        Self {
+            address: observation.fact_address.clone(),
+            outcome: observation.outcome.clone(),
+            versions: observation.versions.clone(),
+        }
+    }
+
+    pub fn facts(&self) -> Option<&Facts> {
+        match &self.outcome {
+            Outcome::Found { facts } => Some(facts),
+            Outcome::NotFound => None,
+        }
+    }
+}
+
+crate::string_newtype! {
+    admitted Provenance, check_provenance
+}
+
+fn check_provenance(s: &str) -> Result<(), String> {
+    match s.is_empty() {
+        true => Err("must not be empty; leave it unset instead".to_owned()),
+        false => Ok(()),
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Sighting {
+    pub anchor: AnchorKey,
+    pub address: FactAddress,
+    pub taken_at: DateTime<Utc>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provenance: Option<Provenance>,
+}
+
+impl Sighting {
+    pub fn new(anchor: AnchorKey, address: FactAddress, taken_at: DateTime<Utc>) -> Self {
+        Self {
+            anchor,
+            address,
+            taken_at,
+            provenance: None,
+        }
+    }
+
+    pub fn by(mut self, provenance: Provenance) -> Self {
+        self.provenance = Some(provenance);
+        self
     }
 }
 
@@ -374,6 +434,56 @@ mod tests {
             fact_address: FactAddress::try_new("b".repeat(64)).unwrap(),
             versions: versions(),
         }
+    }
+
+    #[test]
+    fn a_reading_carries_the_value_and_the_instrument_and_not_the_anchor() {
+        let r = Reading::of(&obs());
+        assert_eq!(r.address, obs().fact_address);
+        assert_eq!(r.facts(), obs().facts());
+        assert_eq!(r.versions, versions());
+    }
+
+    #[test]
+    fn the_same_value_read_twice_is_one_reading_because_the_address_is_its_identity() {
+        let first = Reading::of(&obs());
+        let second = Reading::of(&obs());
+        assert_eq!(
+            first, second,
+            "a reading is keyed by content, so repeating a read stores nothing new"
+        );
+    }
+
+    #[test]
+    fn two_sightings_of_one_reading_differ_only_in_when_and_from_where() {
+        let address = obs().fact_address;
+        let noon = Sighting::new(AnchorKey::new("a"), address.clone(), at(0));
+        let later = Sighting::new(AnchorKey::new("a"), address.clone(), at(240))
+            .by(Provenance::new("change-log:812"));
+        assert_eq!(noon.address, later.address);
+        assert_ne!(noon.taken_at, later.taken_at);
+        assert_eq!(noon.provenance, None);
+        assert_eq!(later.provenance, Some(Provenance::new("change-log:812")));
+    }
+
+    #[test]
+    fn a_sighting_with_no_provenance_writes_no_key_for_it() {
+        let json = serde_json::to_value(Sighting::new(
+            AnchorKey::new("a"),
+            obs().fact_address,
+            at(0),
+        ))
+        .unwrap();
+        assert!(
+            json.get("provenance").is_none(),
+            "an empty slot is absent, not null: {json}"
+        );
+    }
+
+    #[test]
+    fn an_empty_provenance_is_refused_rather_than_stored_as_a_blank_author() {
+        assert!(Provenance::try_new("").is_err());
+        assert!(Provenance::try_new("change-log:812").is_ok());
     }
 
     fn at(n: i64) -> DateTime<Utc> {

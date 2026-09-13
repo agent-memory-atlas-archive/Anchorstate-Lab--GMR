@@ -10,11 +10,11 @@ pub use addr::{
 };
 pub use anchor::{
     Anchor, AnchorKey, Expr, POSITION, Recorded, Retain, Rule, RunSettings, STATUS, State,
-    StatusId, Superseded, Transitions,
+    StatePath, StatusId, Superseded, Transitions,
 };
 pub use journal::{
-    AnchorState, Change, ChangeKind, Entry, FailureCode, Faltering, Observation, ReasonClass, Seq,
-    Versions, fold, resume, scan, should_still,
+    AnchorState, Change, ChangeKind, Entry, FailureCode, Faltering, Observation, Provenance,
+    Reading, ReasonClass, Seq, Sighting, Versions, fold, resume, scan, should_still,
 };
 pub use memory::{
     Binding, Claim, ExternalId, Link, LinkKind, ProviderId, Ref, SaidId, Source, Version,

@@ -97,6 +97,47 @@ impl State {
     pub fn as_value(&self) -> &Value {
         &self.0
     }
+
+    pub fn at(&self, path: &StatePath) -> Option<&Value> {
+        let mut here = &self.0;
+        for step in path.steps() {
+            here = match here {
+                Value::Object(fields) => fields.get(step)?,
+                Value::Array(items) => items.get(step.parse::<usize>().ok()?)?,
+                _ => return None,
+            };
+        }
+        Some(here)
+    }
+
+    pub fn hash_at(&self, path: &StatePath) -> Option<ContentHash> {
+        self.at(path).and_then(|v| content_hash_of(v).ok())
+    }
+}
+
+fn check_path(s: &str) -> Result<(), String> {
+    if s.is_empty() {
+        return Err("must not be empty".to_owned());
+    }
+    if s.len() > 256 {
+        return Err("must be at most 256 chars".to_owned());
+    }
+    if s.split('.').any(str::is_empty) {
+        return Err(format!(
+            "`{s}` has an empty step; steps are separated by `.`"
+        ));
+    }
+    Ok(())
+}
+
+string_newtype! {
+    admitted StatePath, check_path
+}
+
+impl StatePath {
+    pub fn steps(&self) -> impl Iterator<Item = &str> {
+        self.as_str().split('.')
+    }
 }
 
 impl Default for State {
@@ -183,6 +224,53 @@ mod tests {
             terminal: terminal.iter().map(|s| StatusId::new(*s)).collect(),
             supersedes: None,
         }
+    }
+
+    fn path(s: &str) -> StatePath {
+        StatePath::try_new(s).expect("the fixture spells a path")
+    }
+
+    #[test]
+    fn a_path_walks_objects_and_arrays_and_stops_where_the_shape_ends() {
+        let s = State::new(json!({ "now": { "sig": "fn a()", "members": ["x", "y"] } }));
+        assert_eq!(s.at(&path("now.sig")), Some(&json!("fn a()")));
+        assert_eq!(s.at(&path("now.members.1")), Some(&json!("y")));
+        assert_eq!(s.at(&path("now.members.9")), None);
+        assert_eq!(s.at(&path("now.sig.deeper")), None);
+        assert_eq!(s.at(&path("absent")), None);
+    }
+
+    #[test]
+    fn one_path_moving_leaves_every_other_path_hash_alone() {
+        let before = State::new(json!({ "now": { "sig": "fn a()", "place": 10 } }));
+        let after = State::new(json!({ "now": { "sig": "fn a()", "place": 44 } }));
+        assert_eq!(
+            before.hash_at(&path("now.sig")),
+            after.hash_at(&path("now.sig")),
+            "an edit elsewhere in the file must not stale a memory about the signature"
+        );
+        assert_ne!(
+            before.hash_at(&path("now.place")),
+            after.hash_at(&path("now.place"))
+        );
+    }
+
+    #[test]
+    fn a_path_that_is_gone_hashes_to_nothing_rather_than_to_null() {
+        let s = State::new(json!({ "now": { "sig": serde_json::Value::Null } }));
+        assert!(
+            s.hash_at(&path("now.sig")).is_some(),
+            "a null value is a value"
+        );
+        assert!(s.hash_at(&path("now.gone")).is_none());
+    }
+
+    #[test]
+    fn a_path_with_an_empty_step_is_refused_because_it_would_silently_match_the_root() {
+        assert!(StatePath::try_new("now..sig").is_err());
+        assert!(StatePath::try_new("").is_err());
+        assert!(StatePath::try_new(".now").is_err());
+        assert!(StatePath::try_new("now.sig").is_ok());
     }
 
     #[test]
