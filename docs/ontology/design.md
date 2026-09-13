@@ -220,9 +220,8 @@ Policy、Incident、Owner 是组织模块；Format、produces、consumes 是数�
 | Reading | 内容寻址，去重 |
 |---|---|
 | address | `hash(derivation, found, facts)`，与今天一致 |
-| facts | 值 |
-| paths | 每条 state 路径上值的 content hash |
-| derivation | 尺子 |
+| outcome | 值，或 NotFound |
+| versions | 尺子：declaration、derivation、evaluator |
 
 | Sighting | 只追加，每次读一条 |
 |---|---|
@@ -235,7 +234,9 @@ Policy、Incident、Owner 是组织模块；Format、produces、consumes 是数�
 
 【决定】**Sighting 必须留存。**引用 token 是 (地址, 路径)，"是哪一次读"靠它恢复；第 8 节的读取台账与它是同一张表。交付物是"每句话能走回它依据的那次读数"，台账可丢等于交付物可丢。保留多久由部署定，但不留是部署主动关掉一项保证，不是默认。
 
-【设计】`paths` 住在 Reading 上。第 4.4 节说的"每条路径带写入时该路径值的 content hash"指的就是这些；rests_on 记 (锚, 路径, hash)，比较时取 Reading 的 `paths`，读时不折 journal。
+【设计】**路径 hash 不单独存。**第 4.4 节的路径是 **state 路径**（第 13 节第 3 步的映射表：`sig` 到 `now.sig`、`logic` 到 `now.body`），而 state 是读数序列经 δ 的投影。写入时在投影上按路径算 hash，记进 rests_on；判 stale 时在当前投影上按同样的路径再算一次。两端都是现算，没有第三份拷贝要维护。【现状】今天 `read.rs` 的 `differing` 已经在 state 上走（根层跳过 `POSITION`），只是它比整个 state，不比记录的路径。
+
+【设计】**reading 表是可删可重建的派生索引，不是第二份真源。**`should_still` 要求 state 与 address 都未变才不写条目（`journal.rs`），所以**每一个发出过的地址，它的 outcome 必定在某条 journal 条目里**——reading 表只是把它按地址索引起来，丢了可以从 journal 重建。Sighting 不同：它记的是"这一次读发生过"，任何东西都推不出来，是主记录。
 
 【设计】`Retain::Full` 删除。它靠复制整个 observation 与整个 state 来留住每次观测，贵到默认必须关掉；Reading 去重加 Sighting 一行做同一件事，便宜一个数量级。still 条目随之不再需要。
 
@@ -287,7 +288,7 @@ state 另带 moved_count 和 last_moved_at。驻留窗口是 pack 的参数，�
 |---|---|---|
 | Assertions | add、replace(expected_hash)、retire、reattest、by_subject、by_author、all | bindings 表加两列：rests_on 的路径与 hash |
 | Edges | out(subject, kind?)、in(object, kind?) | links 表，kind 由本体约束 |
-| Readings（gmr-store） | put(Reading)、get(address) | 新 reading 表；**按地址取，不按锚取**——地址是（尺子, 值）的身份，读数记录按它寻址（5.3） |
+| Readings（gmr-store） | put(Reading)、get(address) | 新 reading 表；**按地址取，不按锚取**——地址是（尺子, 值）的身份。派生索引，可从 journal 重建（5.3） |
 | Sightings（gmr-store） | sighted(anchor, address, taken_at, source)、of(address)、of_anchor(anchor) | sighting 表由 (anchor PK, count, last_at) 改为只追加 |
 
 gmr-store 保留 Journal、Chained、Sealer、Queue、Settings、Usage、Ledger，加 `Readings`，`Sightings` 按上表重写；其 sqlite 后端另实现 gmr-net 的两个 trait。`BindingStore` 和 `LinkStore` 由 Assertions 和 Edges 取代，方法一一对应：bind 是 add，revoke 是 retire，bindings_on 是 by_subject，links_of 是 out，links_to 是 in。
