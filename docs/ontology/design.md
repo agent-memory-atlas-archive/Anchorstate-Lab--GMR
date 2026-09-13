@@ -129,6 +129,8 @@ CLAUDE.md §1 的十三条里十二条原样保留。第 9 条改写为：
 
 【决定】一条断言的 rests_on 是若干依据，每个依据是：锚 key，加零到多条 state 路径，每条路径带写入时该路径值的 content hash。不写路径的依据退化为整个读数的 fact address。记录自包含，读时不折 journal。
 
+【设计】这些 hash 住在读数记录的 `paths` 上（5.3）。退化形式不是遗留格式：一条断言说不出它关心哪条路径，那"整次读数都不能变"就是它诚实的依据。
+
 【设计】stale 判定：对每个依据，取锚当前投影，在记录的每条路径上算 hash，与记录不同即 stale。退化情形比较 fact address。stale 是标记，带理由：
 
 | 理由 | 判定 |
@@ -205,11 +207,43 @@ Policy、Incident、Owner 是组织模块；Format、produces、consumes 是数�
 
 【现状】open 条目平均 9,955 字节，847 条共 8.2 MB，全部是内嵌的规则表；transition 平均 2,489 字节，11,089 条共 27 MB；sealed 里 3,527 份是 seal_context 封的状态快照，共 9.4 MB，581 份是理由，共 133 KB。
 
-【设计】改动三处：`Anchor.transitions` 从 `Transitions` 改为规则表的 `ContentHash`，规则表存入 sealed，847 份变成约 4 份；`seal_context` 停用，revise 和 close 只封理由；`Retain` 与 still 的现状不变。fold 留在 gmr-core，gmr-core 继续不依赖 gmr-expr。
+【设计】改动三处：`Anchor.transitions` 从 `Transitions` 改为规则表的 `ContentHash`，规则表存入 sealed，847 份变成约 4 份；`seal_context` 停用，revise 和 close 只封理由；`Retain::Full` 与 still 删除，它们要做的事由 5.3 的 Reading 与 Sighting 承担。fold 留在 gmr-core，gmr-core 继续不依赖 gmr-expr。
 
-【设计】读数缓存：sighting 表加 fact_address 列，成为 (anchor, address, hash, at)。
+### 5.3 读数是记录
 
-### 5.3 coding pack 的富形状
+【决定】**读数是一条记录，不是状态转移记录的字段。**它的存活不取决于它是否改变了状态。
+
+【现状】今天读数嵌在 `Entry::Transition { observation, .. }` 里，且 `observe.rs` 在读到同值同态时什么都不写（`should_still` 成立且 attempts 为 0 时 entry 为 `None`）。`sighting` 表是 `(anchor PRIMARY KEY, count, last_at)`。地址是 `hash(derivation, found, facts)`（`probe.rs` 的 `Outcome::address`），即（尺子, 值）这一对的身份——**但没有按地址存内容的地方**。后果有二：给出一个地址，基座交不回值；"12:05 那一次读到了什么"只对最后一次成立。【现状】bindings 表 2,579 行里 `saw` 非空的有 11 行——格子在，几乎没人填。
+
+【设计】两条记录：
+
+| Reading | 内容寻址，去重 |
+|---|---|
+| address | `hash(derivation, found, facts)`，与今天一致 |
+| facts | 值 |
+| paths | 每条 state 路径上值的 content hash |
+| derivation | 尺子 |
+
+| Sighting | 只追加，每次读一条 |
+|---|---|
+| address | 指向 Reading |
+| anchor | 地址本身不带锚，这一列补上 |
+| taken_at | 这一次读的时刻 |
+| source | 这个值是谁写的；探针填，基座不解释 |
+
+【决定】**来源不进地址。**地址标识"这个值 + 这把尺子"；来源标识"这一次读"。同值不同来路若变成不同地址，内容寻址的去重与 `saw` 比对当场失效。同一个值被读两次 = 一条 Reading、两条 Sighting。
+
+【决定】**Sighting 必须留存。**引用 token 是 (地址, 路径)，"是哪一次读"靠它恢复；第 8 节的读取台账与它是同一张表。交付物是"每句话能走回它依据的那次读数"，台账可丢等于交付物可丢。保留多久由部署定，但不留是部署主动关掉一项保证，不是默认。
+
+【设计】`paths` 住在 Reading 上。第 4.4 节说的"每条路径带写入时该路径值的 content hash"指的就是这些；rests_on 记 (锚, 路径, hash)，比较时取 Reading 的 `paths`，读时不折 journal。
+
+【设计】`Retain::Full` 删除。它靠复制整个 observation 与整个 state 来留住每次观测，贵到默认必须关掉；Reading 去重加 Sighting 一行做同一件事，便宜一个数量级。still 条目随之不再需要。
+
+【设计】observe 的写入路径：每次观测写一条 Sighting；Reading 按地址 CAS，已存在则不重复写。**δ 与 transition 的条件一个字不改**——变的只是读数在喂给 δ 之前先落成记录。
+
+【决定】观测可以来自只追加的流。`Transport` 必须实现 `invoke`（一个锚，一个值）；`Streamed` 是可拒绝的能力，不实现即声明没有——与第 6 节存储契约的两层分法同构。一次调用按游标读一张只追加的表，产出多个 (position, outcome, source)。它不破坏可重算：同一张表、同一个游标，任何人重跑得到同一批地址。**本批不实现。**它的两个前置写在这里，实现前必须先解决：锚要能按族声明并在首次出现时自动打开（否则第一行就撞 `AlreadyOpen`）；"这张表只追加"是领域的承诺，基座验证不了，这是一条今天不存在的信任边界。
+
+### 5.4 coding pack 的富形状
 
 【现状】shapes.rs 在 console/cli，1,261 行，四个形状 contract、roster、fingerprint、value，共 15 个 dim，全部是 `baseline != obs` 的一位比较。taken_at 和 entered_at 在 shapes.rs 里出现 0 次。gmr-expr 完整支持这两个输入和 `30d` 这类时长字面量；runtime 的 translate.rs 已把 entered_at 传入 δ。
 
@@ -227,15 +261,15 @@ state 另带 moved_count 和 last_moved_at。驻留窗口是 pack 的参数，�
 
 三条实现约束，来自 δ 的求值方式：flux 到 settled 靠时间流逝触发，但 δ 只在观察时求值，窗口内无人观察则下次观察一步跳到 settled，"编辑期间不交回"只在 hook 每次编辑都观察时成立；returned 要比对最后一次 present 的 sig，absent 状态必须把它带进 state；flux 期间每次变化都要产生不同的 state 对象，否则 entered_at 不会重置，所以 last_moved_at 写 taken_at。
 
-### 5.4 与现状的差距
+### 5.5 与现状的差距
 
 | 差距 | 【现状】证据 | 处置 |
 |---|---|---|
 | 规则表随每次 read 交付 | read --json 一个坐标 18,564 字节，其中 anchor.transitions 9,265 字节（2026-09-08 在 0.6.3 上测得） | 5.2 |
 | 锚 = 坐标 = 身份 | AnchorKey 是坐标串，position 不带 shape | 4.3 |
 | 绑定在笔记级，订阅靠手写 watch | 196 篇笔记中 175 篇有 watch，145 篇一模一样是 `[sig, logic]` | 4.1、4.4 |
-| 只有退化形状 | 15 个 dim 全是一位比较，时间输入未用 | 5.3 |
-| 形状放错了层 | shapes.rs 在 console/cli | 5.3 |
+| 只有退化形状 | 15 个 dim 全是一位比较，时间输入未用 | 5.4 |
+| 形状放错了层 | shapes.rs 在 console/cli | 5.4 |
 | 状态快照被封存 | sealed 9.4 MB 是快照 | 5.2 |
 | still 堆积 | 已于 08-25 关闭 | 无 |
 
@@ -247,15 +281,16 @@ state 另带 moved_count 和 last_moved_at。驻留窗口是 pack 的参数，�
 
 【决定】核心定两样：断言的自包含记录格式（第 9 节的行语法即字节格式），以及存储契约。家由部署定：coding 放仓库文件，ATA 放它 submit 事务里的表，个人助理放本地库或托管服务。共享、审阅、备份是那个家自己的机制。
 
-【设计】存储契约由 gmr-net 声明为三个 trait，任何后端实现：
+【设计】断言侧的存储契约由 gmr-net 声明为两个 trait，任何后端实现；读数侧的 `Readings` 与 `Sightings` 住在 gmr-store（5.3、第 17 节），随读数层落地，不等 gmr-net：
 
 | trait | 方法 | 【现状】对应 |
 |---|---|---|
 | Assertions | add、replace(expected_hash)、retire、reattest、by_subject、by_author、all | bindings 表加两列：rests_on 的路径与 hash |
 | Edges | out(subject, kind?)、in(object, kind?) | links 表，kind 由本体约束 |
-| Readings | put(anchor, address, hash, at)、get(anchor) | sighting 表加 address 列 |
+| Readings（gmr-store） | put(Reading)、get(address) | 新 reading 表；**按地址取，不按锚取**——地址是（尺子, 值）的身份，读数记录按它寻址（5.3） |
+| Sightings（gmr-store） | sighted(anchor, address, taken_at, source)、of(address)、of_anchor(anchor) | sighting 表由 (anchor PK, count, last_at) 改为只追加 |
 
-gmr-store 保留 Journal、Chained、Sealer、Queue、Settings、Sightings、Usage、Ledger，其 sqlite 后端实现 gmr-net 的三个 trait。`BindingStore` 和 `LinkStore` 由 Assertions 和 Edges 取代，方法一一对应：bind 是 add，revoke 是 retire，bindings_on 是 by_subject，links_of 是 out，links_to 是 in。
+gmr-store 保留 Journal、Chained、Sealer、Queue、Settings、Usage、Ledger，加 `Readings`，`Sightings` 按上表重写；其 sqlite 后端另实现 gmr-net 的两个 trait。`BindingStore` 和 `LinkStore` 由 Assertions 和 Edges 取代，方法一一对应：bind 是 add，revoke 是 retire，bindings_on 是 by_subject，links_of 是 out，links_to 是 in。
 
 ### 6.2 校验器住在 write 里
 
@@ -326,8 +361,12 @@ CAS 只保护本地写路径。两个分支各自 replace 同一槽位，git 合
 | locate | 词、label 或位置到实体；用 4.3 的派生索引 | 5 行 |
 | read | 一个节点，或 `ontology.Type` 列出槽位与关系 | 1 KB |
 | walk | 从一个节点按过滤条件取边，一跳或限深 | 4 KB，信封不超过 20%，截断显式计数 |
+| reading | 一个地址 → 那次读数的值、尺子、全部读取时刻与来源 | 1 KB |
+| stands | 一组 (地址, 路径) → 是否仍成立；**不触发探针** | 每项约 40 字节 |
 | write | 四个原语 | 200 字节 |
 | check | 哪些断言 stale，哪些锚 transition；安静时零输出 | 每项约 100 字节 |
+
+`reading` 与 `stands` 是浅那一层（第 1 节）的全部出口：一次性任务拿地址、解引用回值、发出前确认还成立，不进网也不写断言。它们从 Reading 与 Sighting 直接答（5.3），因此 `stands` 的探针调用次数是零——基座对世界的了解只到上次读的那一刻，`stands` 回答的是"我记下的那次读，现在还是当前的吗"，不是"世界现在是什么"。后者要探针，是 `read` 的事。
 
 walk 的过滤参数：kind、direction、source class、stale（include、exclude、only）、entity type、depth、budget。stale 的默认值由调用方的读模型定，基座的默认是 include 并标记。
 
@@ -335,7 +374,8 @@ walk 的过滤参数：kind、direction、source class、stale（include、exclu
 
 - locate、read、walk 每交出一个实体，为它当前的读数发一个地址，并记进本任务的台账。write 的 E07 查的就是这本台账。
 - **对任意坐标发地址，不以网里有没有断言为条件。** 一个坐标此刻在网里一条断言也没有，读入口照样为它读一次现实、发一个地址。否则 agent 要写的第一条断言永远无址可引，只能引邻近的东西（第 7 节【现状】）。
-- 台账按任务隔离，write 的 E07 查它。是否留存由部署定。
+- 台账按任务隔离，write 的 E07 查它。**台账就是 Sighting 表**（5.3）：发一个地址就是追加一条 `(address, anchor, taken_at, source)`，任务标识写在这条记录上。不是两套东西。
+- **台账必须留存。**引用 token 是 (地址, 路径)，"是哪一次读"只能由它恢复；台账可丢等于第 1 节那句保证可丢。保留窗口由部署定，但不留是部署主动关掉一项保证，不是默认。
 - 发出地址即断言这次读取真实发生过。读不到就是 NotFound，按 CLAUDE.md §6 报出，不发地址。
 
 【决定】以下不是核心的事：按 task 取回一个任务的 Claim（task 只是来源标注；读模型可以按 author 过滤）；按会话分域；语义检索。
@@ -416,7 +456,7 @@ Claude API 应用的门。一个 `/memories` 处理器，六个命令映射到�
 
 ### 10.3 CLI 与 SDK
 
-程序和操作员的门，结构对象路径。init、probes、export、import、publish、revise 族藏在这里。【现状】CLI 有 16 个显示动词和 18 个隐藏动词；其中 said、bind、attest、reaffirm、cobound、link、condense、`anchor -m` 并入 write；read、since、links、list、memories、status、ground、standing、sample、health 并入 read 和 walk；check、observe、pass、doctor、sync 并入 check 和 index；adopt、atlas 动词、`accept --baseline` 删除；`accept --criteria` 就是 revise。其余隐藏动词在 Phase 2 逐个归类，本文不预先断言。
+程序和操作员的门，结构对象路径。init、probes、export、import、publish、revise 族藏在这里。【现状】CLI 有 16 个显示动词和 18 个隐藏动词；其中 said、bind、attest、reaffirm、cobound、link、condense、`anchor -m` 并入 write；read、since、links、list、memories、status、sample、health 并入 read 和 walk；ground 与 standing 归入 reading 与 stands，**不并掉**——它们是浅那一层的出口，第 8 节；check、observe、pass、doctor、sync 并入 check 和 index；adopt、atlas 动词、`accept --baseline` 删除；`accept --criteria` 就是 revise。其余隐藏动词在 Phase 2 逐个归类，本文不预先断言。
 
 ### 10.4 宿主接法
 
@@ -559,12 +599,12 @@ Claude API 应用的门。一个 `/memories` 处理器，六个命令映射到�
 
 | 项 | 行数 | 处置 |
 |---|---|---|
-| gmr-core journal 与 fold | 909 | 保留；5.2 的三处改动 |
+| gmr-core journal 与 fold | 909 | 保留；5.2 的三处改动，加 5.3 的 Reading 与 Sighting 类型 |
 | gmr-expr | 1,835 | 保留 |
 | gmr-budget | 220 | 保留 |
 | gmr-probe | 130 | 保留 |
-| gmr-store | 3,564 | 保留；BindingStore、LinkStore 由 gmr-net 的 Assertions、Edges 取代，表不动 |
-| gmr-runtime read.rs | 1,375 | 修正：Warrant、Holding、Shown、Depends、Footing 删壳，differing 与 Incomparable 规则搬进 stale 比较器 |
+| gmr-store | 3,564 | 保留；BindingStore、LinkStore 由 gmr-net 的 Assertions、Edges 取代，表不动；加 `Readings`，`Sightings` 改为只追加（5.3） |
+| gmr-runtime read.rs | 1,375 | 修正：Warrant、Holding、Footing 删壳，differing 与 Incomparable 规则搬进 stale 比较器；**Shown 保留并交回值**——`recorded_at` 今天手里握着 observation 只返回 seq（5.3） |
 | gmr-runtime 其余 | 3,687 | 修正：bind、condense、reaffirm 成为四原语的实现；edges、link 成为 walk 的实现 |
 | gmr-content | 360 | 删除整个 crate |
 | batteries/provider | 1,708 | 删除整个 battery |
@@ -592,8 +632,9 @@ Claude API 应用的门。一个 `/memories` 处理器，六个命令映射到�
 
 - §1 第 9 条改为第 2 节的文字。
 - §2 memories/ 的描述改为"记忆图在 coding 部署里的容器"，about 与 watch 的说明删除。
-- §5 加一条：**gmr-net**：断言记录格式、校验器、四个写入原语、读入口算法；声明 `Assertions`、`Edges`、`Readings` 三个存储契约。无 IO，依赖 gmr-core，不依赖 gmr-store 与 gmr-runtime。
-- §5 删 gmr-content 一条；gmr-store 一条的 trait 名单去掉 BindingStore 与 LinkStore；gmr-runtime 一条的依赖列表以 net 替 content。
+- §5 加一条：**gmr-net**：断言记录格式、校验器、四个写入原语、读入口算法；声明 `Assertions`、`Edges` 两个存储契约。无 IO，依赖 gmr-core，不依赖 gmr-store 与 gmr-runtime。
+- §5 删 gmr-content 一条；gmr-store 一条的 trait 名单去掉 BindingStore 与 LinkStore，**加 `Readings`**；gmr-runtime 一条的依赖列表以 net 替 content。
+- `Readings` 不进 gmr-net。它是存储契约，按 CLAUDE.md §5 的分层判据（一个 store 拒绝它还算不算完整的 store）答案是不算：取不回读数的 store 交付不了第 1 节那句保证。所以它与 `Journal` 并列进必须实现那一层，住在 gmr-store，随读数层落地，不等 gmr-net。
 
 【设计】tools/gate.py：`TRAIT_ROSTERS` 以 gmr-net 替 gmr-content；`NO_CONCRETE_IMPL` 加 gmr-net，去 gmr-content；`CLEAN_ZONES` 加 crates/gmr-net，去 crates/gmr-content、batteries/provider；`architecture.toml` 的排除表同步。
 
