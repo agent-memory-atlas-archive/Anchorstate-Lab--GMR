@@ -427,7 +427,7 @@ Claude API 应用的门。一个 `/memories` 处理器，六个命令映射到�
 
 ### 11.1 coding 本体文件
 
-【设计】coding 的领域本体是一个文件，`packs/coding/ontology.yaml`，由 gmr-net 的 write 读取，在 Phase 0 创建（第 15 节）。它有读者之前不存在于仓库里。它必须声明：
+【设计】coding 的领域本体是一个文件，`packs/coding/ontology.yaml`，由 gmr-net 的 write 读取，随 Phase 1 进仓库。【现状】Phase 0 在 commit `ce9ac62` 写过一版，留在实验分支上：`packs/` 是发布路径，一个实验的产出不搭实验的车进去。它有读者之前不存在于交付线上。它必须声明：
 
 - 实体与键形：Module（path）、File（path）、Function、Type、Field、Test、Constant（`path#NAME`）、Format（name）、Endpoint（method path）、Table（db.table）、Config（`path#key` 或 `env#NAME`）、Dependency（crate 或服务名）、Policy、Incident、Owner、Claim、Concept。Function、Type、Field、Test 的键是 4.3 的 id，shape 是观察属性。
 - 槽位：每个实体的一句话槽位及其接受的来源类；Decision 与 Policy 带 claim、rationale、review_question、valid_from、standing（live 或 retired）；File 带 role；Concept 带 definition。
@@ -497,7 +497,7 @@ Claude API 应用的门。一个 `/memories` 处理器，六个命令映射到�
 - 每任务测四个数：首次编辑前在交付集之外读的字节；测试通过率；写入里无提示即合法的比例；任务结束后的 stale 断言数。第四个只记不判。
 - 预注册判据：后 5 个任务的外部读取字节均值低于前 5 个的 70%，且无提示合法写入不低于一半。任一不满足即证伪。
 
-【现状】2026-09-09 跑完，20 格，sonnet。第一条判据 0.94（要求低于 0.70），第二条 10/11 落地。**判决：证伪。** 完整记录 `tools/experiments-2026-09.md` §4，原始数据 `tools/falsify/results-2026-09.jsonl`。
+【现状】2026-09-09 跑完，20 格，sonnet。第一条判据 0.94（要求低于 0.70），第二条 10/11 落地。**判决：证伪。** 完整记录与原始数据在 commit `1d6d529`（`tools/experiments-2026-09.md` §4 与 `tools/falsify/results-2026-09.jsonl`），留在实验分支 `net/2-falsify`，未并入交付线。按 sha 取：`git show 1d6d529:tools/experiments-2026-09.md`。
 
 【现状】判据本身的三个问题，跑完才看清。改不改判据属 CLAUDE.md §7，此处只记事实：
 
@@ -521,7 +521,7 @@ Claude API 应用的门。一个 `/memories` 处理器，六个命令映射到�
 
 产出：校验器脚本、行语法渲染器、第 14 节的实验记录。验收：预注册判据。
 
-【现状】已完成。产出落在 `tools/net`（grammar、validate、walk、write、check、render）、`tools/falsify`、`packs/coding/ontology.yaml`。验收未通过：预注册判据判为证伪（第 14 节【现状】）。按本节与第 14 节，Phase 1 不在这个结果上启动。
+【现状】已完成。产出落在 commit `ce9ac62`：`tools/net`（grammar、validate、walk、write、check、render）、`tools/falsify`、`packs/coding/ontology.yaml`，留在实验分支 `net/2-falsify`，未并入交付线——量具与一次性原型不进产品路径，本体文件走 Phase 1 的门。验收未通过：预注册判据判为证伪（第 14 节【现状】）。按本节与第 14 节，Phase 1 不在这个结果上启动。
 
 ### Phase 1：gmr-net、write、index、迁移
 
