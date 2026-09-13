@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use gmr::{AnchorView, Before, Grounding, MemoryView, Runtime, Sighting};
+use gmr::{AnchorView, Before, Grounding, MemoryView, Presence, Runtime};
 use gmr_atlas::{Edge, EdgeKind, Graph, Kind, Node, Tone};
 
 use crate::delivery::Subscriptions;
@@ -56,7 +56,7 @@ fn trail_of(key: &str) -> Vec<String> {
 fn anchor_tone(view: &AnchorView, delivering: bool, unclaimed: bool) -> Tone {
     if view.closed {
         Tone::Muted
-    } else if view.faltering.is_some() || matches!(view.sighting, Sighting::Absent) {
+    } else if view.faltering.is_some() || matches!(view.sighting, Presence::Absent) {
         Tone::Alarm
     } else if delivering || unclaimed {
         Tone::Notice
@@ -361,7 +361,7 @@ mod tests {
             },
             state: gmr::State::new(serde_json::json!({ "status": status })),
             status: Some(gmr::StatusId::new(status)),
-            sighting: Sighting::Found,
+            sighting: Presence::Found,
             closed,
             faltering: None,
             entered_at: None,

@@ -11,7 +11,7 @@ pub use crate::link::{Inbound, Links, Reached};
 pub use crate::open::{OpenRequest, Opened, Supersede};
 pub use crate::read::{
     AnchorView, Anchored, Asked, Before, Blind, Depends, Evidence, Footing, Grounded, Grounding,
-    Holding, Instructions, Knowledge, Linked, MemoryView, Reading, SaidView, Shown, Standing,
+    Holding, Instructions, Knowledge, Linked, MemoryView, SaidView, Sample, Shown, Standing,
     Warrant,
 };
 

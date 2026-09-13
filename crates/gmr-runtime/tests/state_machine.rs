@@ -4,7 +4,7 @@ use gmr_core::{
     AnchorKey, Change, Expr, Kind, ProbeRef, ReasonClass, Retain, Rule, RunSettings, State,
     StatusId, Transitions, fold,
 };
-use gmr_runtime::{Observed, OpenRequest, Runtime, Sighting};
+use gmr_runtime::{Observed, OpenRequest, Presence, Runtime};
 use gmr_store::testkit::{MemoryBindings, MemoryJournal, MemoryQueue};
 use gmr_transport::shell::Shell;
 
@@ -357,7 +357,7 @@ async fn the_world_being_empty_is_a_real_answer_and_it_lands_as_an_entry() {
     .unwrap();
 
     let view = rt.read(&key()).await.unwrap();
-    assert_eq!(view.sighting, Sighting::Absent);
+    assert_eq!(view.sighting, Presence::Absent);
     assert_eq!(view.status.map(|s| s.to_string()).as_deref(), Some("empty"));
     assert_eq!(
         view.faltering, None,

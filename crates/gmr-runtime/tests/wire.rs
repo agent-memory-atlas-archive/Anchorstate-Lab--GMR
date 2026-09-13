@@ -72,3 +72,19 @@ fn a_policy_states_what_it_means_to_change_and_inherits_the_rest() {
         .expect_err("a bound that is not applied is worse than one that is refused");
     assert!(typo.to_string().contains("probe_budget"), "{typo}");
 }
+
+#[test]
+fn what_the_probe_found_is_named_on_the_wire_by_the_field_not_by_its_rust_type() {
+    assert_eq!(
+        serde_json::to_string(&gmr_runtime::Presence::Found).unwrap(),
+        r#""found""#
+    );
+    assert_eq!(
+        serde_json::to_string(&gmr_runtime::Presence::Absent).unwrap(),
+        r#""absent""#,
+        "`Presence` is the Rust name for the two answers a probe can give about \
+         existence. The wire spells them under the `sighting` key of a sample, and a \
+         reader outside Rust never learns the type's name -- which is what makes \
+         `Reading` and `Sighting` free for the records in gmr-core that earn those names"
+    );
+}

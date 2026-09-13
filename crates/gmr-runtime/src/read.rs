@@ -82,7 +82,7 @@ impl Instructions {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Sighting {
+pub enum Presence {
     Found,
     Absent,
 }
@@ -93,7 +93,7 @@ pub struct AnchorView {
     pub anchor: Anchor,
     pub state: State,
     pub status: Option<StatusId>,
-    pub sighting: Sighting,
+    pub sighting: Presence,
     pub closed: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub faltering: Option<Faltering>,
@@ -108,9 +108,9 @@ pub struct AnchorView {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct Reading {
+pub struct Sample {
     pub key: AnchorKey,
-    pub sighting: Sighting,
+    pub sighting: Presence,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub facts: Option<Facts>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -121,7 +121,7 @@ pub struct Reading {
     pub knowledge: Knowledge,
 }
 
-impl From<AnchorView> for Reading {
+impl From<AnchorView> for Sample {
     fn from(view: AnchorView) -> Self {
         Self {
             knowledge: knowledge_of(&view),
@@ -623,12 +623,12 @@ impl Runtime {
             .0)
     }
 
-    pub async fn sample_all(&self) -> Result<Vec<Reading>, RuntimeError> {
+    pub async fn sample_all(&self) -> Result<Vec<Sample>, RuntimeError> {
         Ok(self
             .read_all()
             .await?
             .into_iter()
-            .map(Reading::from)
+            .map(Sample::from)
             .collect())
     }
 
@@ -646,7 +646,7 @@ impl Runtime {
         &self,
         key: &AnchorKey,
         how: &Instructions,
-    ) -> Result<Reading, RuntimeError> {
+    ) -> Result<Sample, RuntimeError> {
         self.refresh(key, how).await?;
         Ok(stand(&self.log, key, &self.scheduler.seen(key).await?)
             .await?
@@ -1151,7 +1151,7 @@ async fn holding(
     if view.closed {
         return Ok(Holding::Finished);
     }
-    if view.sighting == Sighting::Absent {
+    if view.sighting == Presence::Absent {
         return Ok(Holding::Absent);
     }
     let (Some(bound), Some(moved)) = (bound_at_seq, moved_at) else {
@@ -1224,8 +1224,8 @@ pub(crate) fn viewed(
     };
 
     let sighting = match s.latest.as_ref().map(|o| &o.outcome) {
-        Some(Outcome::Found { .. }) => Sighting::Found,
-        _ => Sighting::Absent,
+        Some(Outcome::Found { .. }) => Presence::Found,
+        _ => Presence::Absent,
     };
     let derivation = s.latest.as_ref().map(|o| o.versions.derivation.clone());
     let fact_address = s.latest.as_ref().map(|o| o.fact_address.clone());
