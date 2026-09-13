@@ -525,7 +525,7 @@ Claude API 应用的门。一个 `/memories` 处理器，六个命令映射到�
 
 【设计】步骤：
 
-1. 校验器和行语法渲染器先存在（第 15 节 Phase 0）。
+1. 校验器和行语法渲染器先存在（第 15 节 Phase 0）。本节整体属 Phase 2；其中第 3 步的轴→路径表在 Phase 1 就用上，给存量绑定的 rests_on 补路径。
 2. 按 migration-full.md 的逐篇拆分生成容器文件：Decision 与 Policy 节点带 claim、rationale、ask；从 about 实体出发的 decided_by 或 governed_by 边；槽位值；边。
 3. 每条 Decision 与 Policy 的 rests_on 从 about 与 watch 机械合成：about 的每个坐标给一个锚 key；watch 的轴映射为 state 路径，sig 到 now.sig，logic 到 now.body，name 到 now.name，file 到 now.file，kind 到 now.form，surface 到 now.surface，place 到 now.after，roster 的 grew 与 shrank 到 count、roll 到 roll，fingerprint 的 drift 到 fingerprint；hash 取迁移当时的值。
 4. 关于被删机制的 52 篇，判断照迁，standing 标 retired。
@@ -603,11 +603,13 @@ Claude API 应用的门。一个 `/memories` 处理器，六个命令映射到�
 
 ### Phase 1：读数层
 
-产出：gmr-core 的 `Reading`、`Sighting` 与逐路径 hash；gmr-store 的 `Readings` trait 与只追加的 `Sightings`，sqlite 后端建 reading 表、重建 sighting 表并从 journal 回填；gmr-runtime 的 observe 写两条记录、`reading` 与 `stands` 两个动词、rests_on 接受 (地址, 路径)；`Retain::Full` 与 still 删除；Node 与 CLI 各加两个动词，其余动词不动；第 13 节的存量绑定迁移。**不依赖 gmr-net，不碰 crate 边界。**验收：14.1 的 G1–G5；gate 通过。
+产出：gmr-core 的 `Reading`、`Sighting` 与逐路径 hash；gmr-store 的 `Readings` trait 与只追加的 `Sightings`，sqlite 后端建 reading 表、重建 sighting 表并从 journal 回填；gmr-runtime 的 observe 写两条记录、`reading` 与 `stands` 两个动词、rests_on 接受 (地址, 路径)；`Retain::Full` 与 still 删除；Node 与 CLI 各加两个动词，其余动词不动；存量绑定的 rests_on 按 13.3 的轴→路径表补上路径。**不依赖 gmr-net，不碰 crate 边界。**验收：14.1 的 G1–G5；gate 通过。
+
+【现状】活着的绑定 216 条（bindings 表 2,579 行是只追加的历史），其中 `external_id:` 2,567 行对应笔记，`said:` 12 行是 agent 结论。197 篇笔记里 176 篇带 `watch:`，轴→路径的映射表今天就在 `console/cli/src/shapes.rs`，`delivery.rs` 已在编译它。12 条 `said:` 没有 `watch:`，退化为整地址——**不猜**，猜就是伪造依据，正是 G5 要拒的。
 
 ### Phase 2：gmr-net、write、index、迁移
 
-产出：crates/gmr-net，含记录格式、第 7 节校验器、四个原语、三个存储 trait、读入口算法；gmr-store 的 sqlite 后端实现三个 trait，bindings 表加两列，sighting 表加一列；index 取代 sync；第 13 节迁移；CLAUDE.md 与 gate.py 按第 17 节改。验收：write 拒绝无槽位文本；196 篇迁移完成并报出丢弃率；gate 通过。
+产出：crates/gmr-net，含记录格式、第 7 节校验器、四个原语、`Assertions` 与 `Edges` 两个存储契约、读入口算法；gmr-store 的 sqlite 后端实现这两个 trait，bindings 表加两列；index 取代 sync；第 13 节的笔记到断言图迁移；CLAUDE.md 与 gate.py 按第 17 节改。验收：write 拒绝无槽位文本；196 篇迁移完成并报出丢弃率；gate 通过。
 
 ### Phase 3：walk、check、门
 
