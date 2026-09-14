@@ -496,14 +496,25 @@ fn ambiguous(had: &[AnchorKey], want: &[AnchorKey], closed: &[AnchorKey]) -> Opt
     (!dropped.is_empty() && !gained.is_empty()).then_some(Rename { dropped, gained })
 }
 
-
-type Planned = (Ref, Vec<AnchorKey>, Version, Vec<AnchorKey>, BTreeSet<gmr::Rests>);
+type Planned = (
+    Ref,
+    Vec<AnchorKey>,
+    Version,
+    Vec<AnchorKey>,
+    BTreeSet<gmr::Rests>,
+);
 
 enum Step {
     Schedule(AnchorKey),
     Resettle(AnchorKey, RunSettings),
     Open(Box<OpenRequest>),
-    Bind(Ref, Vec<AnchorKey>, Version, Vec<AnchorKey>, BTreeSet<gmr::Rests>),
+    Bind(
+        Ref,
+        Vec<AnchorKey>,
+        Version,
+        Vec<AnchorKey>,
+        BTreeSet<gmr::Rests>,
+    ),
 }
 
 async fn align_bindings(
@@ -584,7 +595,9 @@ async fn underfoot(
     };
     let mut resting = BTreeSet::new();
     for key in anchors {
-        let Ok(view) = rt.read(key).await else { continue };
+        let Ok(view) = rt.read(key).await else {
+            continue;
+        };
         let Some(address) = view.fact_address.clone() else {
             continue;
         };
