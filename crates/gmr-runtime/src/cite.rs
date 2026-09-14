@@ -1,8 +1,8 @@
 use chrono::{DateTime, Utc};
 use gmr_core::{
-    AnchorKey, ContentHash, FactAddress, Facts, ProbeVersion, Provenance, Reading, StatePath,
+    AnchorKey, FactAddress, Facts, ProbeVersion, Provenance, Reading, Rests, StatePath,
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::assembly::Runtime;
 use crate::error::RuntimeError;
@@ -23,22 +23,6 @@ pub struct Cited {
     pub facts: Option<Facts>,
     pub instrument: ProbeVersion,
     pub looks: Vec<Look>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Rests {
-    pub anchor: AnchorKey,
-    pub address: FactAddress,
-    #[serde(default)]
-    pub paths: Vec<Footprint>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Footprint {
-    pub path: StatePath,
-    pub hash: ContentHash,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]

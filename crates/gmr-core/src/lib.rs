@@ -3,6 +3,7 @@ pub mod anchor;
 pub mod journal;
 pub mod memory;
 pub mod probe;
+pub mod rests;
 
 pub use addr::{
     CanonicalizeError, ContentHash, NewtypeError, canonicalize, content_hash_of,
@@ -23,3 +24,4 @@ pub use probe::{
     Derivation, FactAddress, Facts, Kind, OUTCOME_CONTRACT, Observes, Openness, Outcome, ProbeName,
     ProbeRef, ProbeVersion, Verifiability,
 };
+pub use rests::{Footprint, Rests};

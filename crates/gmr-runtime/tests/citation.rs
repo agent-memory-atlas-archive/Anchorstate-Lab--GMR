@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
 use gmr_core::{
-    AnchorKey, ContentHash, Expr, Recorded, Retain, Rule, RunSettings, StatePath, Transitions,
+    AnchorKey, ContentHash, Expr, Footprint, Recorded, Rests, Retain, Rule, RunSettings, StatePath,
+    Transitions,
 };
-use gmr_runtime::{Cited, Footprint, OpenRequest, Rests, Runtime, Stands, Why};
+use gmr_runtime::{Cited, OpenRequest, Runtime, Stands, Why};
 use gmr_store::testkit::{MemoryBindings, MemoryJournal, MemoryQueue};
 use gmr_transport::shell::Shell;
 
