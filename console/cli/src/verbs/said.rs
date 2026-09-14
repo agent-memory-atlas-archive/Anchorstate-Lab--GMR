@@ -52,7 +52,11 @@ pub async fn run(rt: &Runtime, asked: Said, json: bool) -> Result<i32, CliError>
     }
 
     let landed = rt
-        .bind(binding, None, saw.clone(), Source::SelfAttested)
+        .bind(
+            binding,
+            gmr::Basis::default().shown(saw.clone()),
+            Source::SelfAttested,
+        )
         .await?;
 
     let stood = rt

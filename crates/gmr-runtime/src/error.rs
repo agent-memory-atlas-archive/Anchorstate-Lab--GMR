@@ -6,6 +6,13 @@ pub enum RuntimeError {
     NoSuchAnchor { key: AnchorKey },
 
     #[error(
+        "no reading is addressed `{address}` — this deployment never issued it. \
+         An address is the identity of a value some probe actually read; one that \
+         resolves to nothing is either from another store or was never taken"
+    )]
+    NoSuchReading { address: gmr_core::FactAddress },
+
+    #[error(
         "no provider named `{provider}` is registered in this binary — \
          this is an assembly fault, not the world saying the record is gone. \
          Which providers exist depends on how this binary was built"
@@ -83,6 +90,7 @@ impl RuntimeError {
     pub fn code(&self) -> &'static str {
         match self {
             Self::NoSuchAnchor { .. } => "no_such_anchor",
+            Self::NoSuchReading { .. } => "no_such_reading",
             Self::NoProvider { .. } => "no_provider",
             Self::NotBound { .. } => "not_bound",
             Self::AlreadyOpen { .. } => "already_open",

@@ -1,20 +1,21 @@
 pub use gmr_core::{
-    Binding, Claim, Derivation, Expr, FactAddress, LinkKind, Observes, Openness, Ref, SaidId,
-    Source, Verifiability, Version,
+    Binding, Claim, Derivation, Expr, FactAddress, Footprint, LinkKind, Observes, Openness, Ref,
+    Rests, SaidId, Source, Verifiability, Version,
 };
 
 pub use gmr_content::ContentErrorCode;
 
-pub use crate::bind::Landed;
+pub use crate::bind::{Basis, Landed};
+pub use crate::cite::{Cited, Drifted, Look, Stands, Upheld, Why};
 pub use crate::edges::{Edge, Edges, Raised};
 pub use crate::link::{Inbound, Links, Reached};
 pub use crate::open::{OpenRequest, Opened, Supersede};
 pub use crate::read::{
     AnchorView, Anchored, Asked, Before, Blind, Depends, Evidence, Footing, Grounded, Grounding,
-    Holding, Instructions, Knowledge, Linked, MemoryView, Reading, SaidView, Shown, Standing,
+    Holding, Instructions, Knowledge, Linked, MemoryView, SaidView, Sample, Shown, Standing,
     Warrant,
 };
 
-pub const CONTRACT: &str = "gmr.contract.v12.0";
+pub const CONTRACT: &str = "gmr.contract.v13.0";
 
-pub const SHAPE: &str = "sha256:dcfb44b05c5113db957eee6bdd7d830cf30608ab8f66a9142afc6e42823d8d44";
+pub const SHAPE: &str = "sha256:94baee355d1d1c6acc4e96b32c79a697b5b3b55472b279906a877cc6a35c0c53";

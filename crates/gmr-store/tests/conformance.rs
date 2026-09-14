@@ -222,6 +222,7 @@ fn asserted(binding: &Binding, version: &str, bound_at_seq: Option<gmr_core::Seq
         bound_version: Some(Version::new(version)),
         bound_at_seq,
         saw: Default::default(),
+        rests: Default::default(),
         source: gmr_core::Source::Adjudicated,
         at: chrono::Utc::now(),
     }
@@ -266,6 +267,7 @@ async fn what_the_asserter_was_looking_at_is_kept_beside_the_assertion<B: Bindin
         bound_version: None,
         bound_at_seq: Some(3),
         saw: std::collections::BTreeSet::from([saw.clone()]),
+        rests: Default::default(),
         source: gmr_core::Source::SelfAttested,
         at: chrono::Utc::now(),
     })

@@ -294,7 +294,9 @@ async fn recorded(
             continue;
         }
 
-        scheduler.sighted(key, at).await?;
+        scheduler
+            .sighted(key, &observation.fact_address, at)
+            .await?;
 
         return Ok(match still_ref {
             Some(_) => Observed::Still,

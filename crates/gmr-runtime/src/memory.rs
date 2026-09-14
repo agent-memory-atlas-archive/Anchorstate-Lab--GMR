@@ -54,8 +54,7 @@ impl MemoryLens {
         &self,
         log: &AnchorLog,
         binding: &Binding,
-        bound_version: Option<&Version>,
-        saw: &std::collections::BTreeSet<FactAddress>,
+        basis: &crate::bind::Basis,
         source: Source,
         at: chrono::DateTime<chrono::Utc>,
     ) -> Result<(), RuntimeError> {
@@ -64,9 +63,10 @@ impl MemoryLens {
             .bindings
             .bind(&Asserted {
                 binding: binding.clone(),
-                bound_version: bound_version.cloned(),
+                bound_version: basis.bound_version.clone(),
                 bound_at_seq,
-                saw: saw.clone(),
+                saw: basis.saw.clone(),
+                rests: basis.rests.clone(),
                 source,
                 at,
             })
@@ -406,6 +406,12 @@ impl Bound {
         })
     }
 
+    pub fn rests(&self) -> &std::collections::BTreeSet<gmr_core::Rests> {
+        static NOTHING: std::sync::LazyLock<std::collections::BTreeSet<gmr_core::Rests>> =
+            std::sync::LazyLock::new(Default::default);
+        self.standing().map_or(&NOTHING, |r| &r.rests)
+    }
+
     pub fn saw(&self) -> &std::collections::BTreeSet<FactAddress> {
         static NOTHING: std::sync::LazyLock<std::collections::BTreeSet<FactAddress>> =
             std::sync::LazyLock::new(Default::default);
@@ -439,18 +445,13 @@ impl Bound {
             .collect()
     }
 
-    pub fn says(
-        &self,
-        asking: &Binding,
-        version: Option<&Version>,
-        saw: &std::collections::BTreeSet<FactAddress>,
-        source: Source,
-    ) -> bool {
+    pub fn says(&self, asking: &Binding, basis: &crate::bind::Basis, source: Source) -> bool {
         !self.asserted.is_empty()
             && asking.anchors.iter().all(|a| self.anchors.contains(a))
             && self.sources().contains(&source)
-            && self.bound_version() == version
-            && self.saw() == saw
+            && self.bound_version() == basis.bound_version.as_ref()
+            && self.saw() == &basis.saw
+            && self.rests() == &basis.rests
             && self.depends() == asking.depends.as_ref()
             && self.dating().is_some_and(|r| r.bound_at_seq.is_some())
     }

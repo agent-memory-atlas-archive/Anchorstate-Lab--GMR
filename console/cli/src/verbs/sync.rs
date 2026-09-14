@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::path::Path;
 
 use gmr::{
@@ -276,8 +277,8 @@ pub async fn synced(
     steps.extend(
         binds
             .into_iter()
-            .map(|(reference, anchors, version, dropped)| {
-                Step::Bind(reference, anchors, version, dropped)
+            .map(|(reference, anchors, version, dropped, rests)| {
+                Step::Bind(reference, anchors, version, dropped, rests)
             }),
     );
     let (link_plans, linked, unlinked) = align_links(rt, notes, names).await?;
@@ -314,15 +315,14 @@ pub async fn synced(
                         warnings.push(format!("{key}: {w}"));
                     }
                 }
-                Step::Bind(reference, anchors, version, dropped) => {
+                Step::Bind(reference, anchors, version, dropped, rests) => {
                     if !dropped.is_empty() {
                         rt.revoke_on(&reference.clone().into(), &dropped, gmr::Source::Derived)
                             .await?;
                     }
                     rt.bind(
                         gmr::Binding::on(reference, anchors),
-                        Some(version),
-                        Default::default(),
+                        gmr::Basis::at(Some(version)).resting(rests),
                         gmr::Source::Derived,
                     )
                     .await?;
@@ -496,20 +496,32 @@ fn ambiguous(had: &[AnchorKey], want: &[AnchorKey], closed: &[AnchorKey]) -> Opt
     (!dropped.is_empty() && !gained.is_empty()).then_some(Rename { dropped, gained })
 }
 
-type Binding = (Ref, Vec<AnchorKey>, Version, Vec<AnchorKey>);
+type Planned = (
+    Ref,
+    Vec<AnchorKey>,
+    Version,
+    Vec<AnchorKey>,
+    BTreeSet<gmr::Rests>,
+);
 
 enum Step {
     Schedule(AnchorKey),
     Resettle(AnchorKey, RunSettings),
     Open(Box<OpenRequest>),
-    Bind(Ref, Vec<AnchorKey>, Version, Vec<AnchorKey>),
+    Bind(
+        Ref,
+        Vec<AnchorKey>,
+        Version,
+        Vec<AnchorKey>,
+        BTreeSet<gmr::Rests>,
+    ),
 }
 
 async fn align_bindings(
     rt: &Runtime,
     notes: &[crate::memories::Note],
     names: &crate::memories::Names,
-) -> Result<(Vec<Binding>, Vec<String>, Vec<String>), CliError> {
+) -> Result<(Vec<Planned>, Vec<String>, Vec<String>), CliError> {
     let mut planned = Vec::new();
     let mut bound = Vec::new();
     let mut renamed = Vec::new();
@@ -552,11 +564,11 @@ async fn align_bindings(
             ))
         })?;
         let asking = gmr::Binding::on(reference.clone(), want.clone());
+        let rests = underfoot(rt, note, &want).await?;
         let settled = had == want
             && current.says(
                 &asking,
-                Some(&version),
-                &Default::default(),
+                &gmr::Basis::at(Some(version.clone())).resting(rests.clone()),
                 gmr::Source::Derived,
             );
         if settled {
@@ -568,9 +580,45 @@ async fn align_bindings(
             false => had.iter().filter(|k| !want.contains(k)).cloned().collect(),
         };
         bound.push(named);
-        planned.push((reference, want, version, dropped));
+        planned.push((reference, want, version, dropped, rests));
     }
     Ok((planned, bound, renamed))
+}
+
+async fn underfoot(
+    rt: &Runtime,
+    note: &crate::memories::Note,
+    anchors: &[AnchorKey],
+) -> Result<BTreeSet<gmr::Rests>, CliError> {
+    let Some(crate::memories::Watch::Axes(axes)) = &note.watch else {
+        return Ok(BTreeSet::new());
+    };
+    let mut resting = BTreeSet::new();
+    for key in anchors {
+        let Ok(view) = rt.read(key).await else {
+            continue;
+        };
+        let Some(address) = view.fact_address.clone() else {
+            continue;
+        };
+        let Some(shape) = crate::shapes::of(&view.anchor.transitions) else {
+            continue;
+        };
+        let mut on = gmr::Rests::on(key.clone(), address);
+        for axis in axes {
+            let Some(path) = crate::shapes::path_of(shape, axis) else {
+                continue;
+            };
+            let Some(hash) = view.state.hash_at(&path) else {
+                continue;
+            };
+            on = on.at(path, hash);
+        }
+        if !on.whole() {
+            resting.insert(on);
+        }
+    }
+    Ok(resting)
 }
 
 enum LinkStep {
@@ -813,7 +861,7 @@ mod tests {
     async fn runtime(dir: &std::path::Path) -> (Runtime, gmr::sqlite::SqliteStore) {
         let store = gmr::sqlite::open(dir.join("memory.db")).await.unwrap();
         let rt = Runtime::builder()
-            .journal(std::sync::Arc::new(store.journal()))
+            .store(std::sync::Arc::new(store.journal()))
             .bindings(std::sync::Arc::new(store.bindings()))
             .sealer(std::sync::Arc::new(store.sealer()))
             .links(std::sync::Arc::new(store.links()))
@@ -862,11 +910,10 @@ mod tests {
              state `check` and `doctor` both read as perfectly fine"
         );
 
-        for (reference, anchors, version, _) in plan {
+        for (reference, anchors, version, _, rests) in plan {
             rt.bind(
                 gmr::Binding::on(reference, anchors),
-                Some(version),
-                Default::default(),
+                gmr::Basis::at(Some(version)).resting(rests),
                 gmr::Source::Derived,
             )
             .await
@@ -1004,8 +1051,7 @@ mod tests {
 
         rt.bind(
             gmr::Binding::on(reference.clone(), keys(&["some::key"])),
-            Some(Version::new("v1")),
-            Default::default(),
+            gmr::Basis::at(Some(Version::new("v1"))),
             gmr::Source::Unknown,
         )
         .await
@@ -1018,11 +1064,10 @@ mod tests {
             "a row saying nothing about where it came from is not a derivation, so sync \
              owes the record one"
         );
-        for (reference, anchors, version, _) in plan {
+        for (reference, anchors, version, _, rests) in plan {
             rt.bind(
                 gmr::Binding::on(reference, anchors),
-                Some(version),
-                Default::default(),
+                gmr::Basis::at(Some(version)).resting(rests),
                 gmr::Source::Derived,
             )
             .await

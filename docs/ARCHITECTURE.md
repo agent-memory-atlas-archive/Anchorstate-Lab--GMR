@@ -70,7 +70,9 @@ For a declared Anchor, GMR provides a chain of durable evidence:
 4. the current state is reconstructed from the Journal rather than maintained as an unverified mutable cache;
 5. a bound memory can be compared with the version seen at bind time and, where the provider permits it, with the content that existed then;
 6. a bound claim carries what its author was looking at and what its author said kept it standing, so a later reader can be told whether that reading was one the Anchor took and whether that condition still holds;
-7. a domain can decide, from the resulting state, whether the memory should be handed back to a human or an agent.
+7. a fact address resolves back to the reading it names — the facts themselves, the instrument version that produced them, and every instant that reading was taken, with whatever provenance the probe could supply;
+8. a bound claim may name the state paths it actually depends on, and is reported as moved only when one of those paths moved;
+9. a domain can decide, from the resulting state, whether the memory should be handed back to a human or an agent.
 
 These guarantees are conditional on the declaration. GMR does not know whether the chosen probe observes the correct object, whether the probe's output is a complete representation, whether a transition rule expresses a sound policy, or whether the memory's author made a good decision. Determinism is not objectivity, and content addressing is not truth.
 
@@ -155,6 +157,17 @@ Observation = (Outcome, FactAddress, Versions)
 The `Outcome` preserves the facts themselves. The `FactAddress` identifies the outcome under the derivation version that produced it. `Versions` preserves the declaration hash, the full derivation record, and the evaluator version.
 
 The `FactAddress` is calculated over the derivation version, the found/not-found flag, and the canonical fact payload. The derivation's verifiability field is retained in `Versions` but is not currently an input to the address. This distinction is small in code and large in meaning: the address answers “which version and answer did this observation have?”, while the `Derivation` record also answers “what level of replayability does the transport claim?”
+
+Two records stand beside the Observation and make the address usable as a citation rather than only as an equality test.
+
+```text
+Reading  = (FactAddress, Outcome, Versions)
+Sighting = (AnchorKey, FactAddress, taken_at, provenance?)
+```
+
+A Reading is content-addressed, so reading the same value twice yields one record; a Sighting is appended on every read, so reading the same value twice yields two. The split follows from what each identifies. The address names the pair (instrument, value) and nothing else — provenance deliberately stays out of it, because the same value arriving through a different origin must not become a different address, or content addressing loses both its deduplication and the `saw` comparison that depends on it. Which Anchor looked, when, and who wrote the value belong to the read, not to the value.
+
+A Reading is not a second source of truth. `should_still` writes no Journal entry only when the state and the address both repeat, so every address ever issued already has its outcome in some entry; the Reading store is an index over the Journal by that address, droppable and rebuildable. The Sighting is the opposite: that a read happened at a particular instant is derivable from nothing, which is why it is the primary record and why discarding it discards a guarantee rather than a cache.
 
 ### 3.6 Anchor and state
 
@@ -450,6 +463,8 @@ The three operations answer different questions. `read` projects existing histor
 
 Two further operations sit beside these and answer the questions of §4.6 rather than §4.5. `sample` reads an Anchor and returns the reading together with its address, so that whoever composes an answer can cite what they were actually shown. `ground` takes claims and reports how they stand. Both accept a freshness bound as an instruction, which decides whether to look again before answering; that is the only way a deployment which never runs a scheduled pass will observe anything at all, and a deployment that reads only the event cursor without either mechanism will correctly and silently report that nothing has changed.
 
+`reading` and `stands` complete that pair on the citation side. `reading` takes an address and returns the reading it names; `stands` takes an anchor, an address and zero or more (path, hash) footprints and reports whether the citation still holds, which path moved, and whether the reason was the value, the instrument, or the path's disappearance. Neither runs a probe. `stands` answers from the folded projection and the hashes recorded at write time, so it says whether what was cited is still current — not what the world holds now, which is `read`'s question and needs an observation. This is what lets a delivery path check a whole answer's citations at no cost before sending it.
+
 This distinction explains why `observe` and `check` can return different exit codes for the same repository state, and why converging them would be a criteria change rather than a tidying of the command surface. `observe` reports any state-machine transition, on every axis, whether or not a memory is bound to the Anchor at all. `check` reports a delivered memory, an Anchor that moved with nothing bound to it, or a grounding diagnostic. Two consequences follow from the level-triggered rule of §4.5. A movement on an axis that no memory watches is a valid transition but is intentionally quiet at the `check` boundary. Conversely, a run in which nothing moved can still fail `check`, because a subscribed axis set by an earlier observation is still set; that is the intended behaviour, not a spurious repeat.
 
 ## 8. Memory protocol
@@ -657,7 +672,7 @@ This section is a map, not a conformance claim. It says where to look; it does n
 
 Probe invocation is defined by `crates/gmr-probe` and assembled by the runtime's Observer. Concrete transports are supplied by `batteries/transport`. The coding extractor and its earned versions are in `packs/coding/extract`. Memory fetching is defined by `crates/gmr-content`, implemented for the repository's providers under `batteries/provider`, and assembled through `MemoryLens`. Language-agnostic walking and fuzzy coordinate matching are in `batteries/survey`, and `batteries/atlas` renders an Anchor-memory graph as a standalone page.
 
-Persistence interfaces, the SQLite implementation, and the portable export and import of §9.5 are in `crates/gmr-store`. The Journal, BindingStore, Sealer, LinkStore, Settings, Sightings, and Queue are separate contracts because their mutability and concurrency semantics differ; `Chained`, which reports where an append-only chain was broken, is a capability a backend may decline to implement rather than a contract every store owes. The budget vocabulary that every outbound call shares is in `crates/gmr-budget`, which depends on nothing. Grounding — the warrant, the citation check, the invariant, and the bounded link walk of §4.6 — is in `crates/gmr-runtime`; `crates/gmr` provides the public re-export facade; the CLI under `console/cli` performs declaration synchronization and memory delivery, and `console/node` and `console/python` carry the host bindings of §6.4.
+Persistence interfaces, the SQLite implementation, and the portable export and import of §9.5 are in `crates/gmr-store`. The Journal, BindingStore, Sealer, LinkStore, Settings, Sightings, Readings, and Queue are separate contracts because their mutability and concurrency semantics differ; `Chained`, which reports where an append-only chain was broken, is a capability a backend may decline to implement rather than a contract every store owes. The budget vocabulary that every outbound call shares is in `crates/gmr-budget`, which depends on nothing. Grounding — the warrant, the citation check, the invariant, and the bounded link walk of §4.6 — is in `crates/gmr-runtime`; `crates/gmr` provides the public re-export facade; the CLI under `console/cli` performs declaration synchronization and memory delivery, and `console/node` and `console/python` carry the host bindings of §6.4.
 
 This mapping is evidence for the design, not a replacement for the design. A file may move while the responsibility remains. Conversely, moving a responsibility across these seams is an architectural change even if the public command names remain the same.
 

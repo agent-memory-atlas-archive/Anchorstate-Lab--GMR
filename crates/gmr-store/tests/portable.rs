@@ -106,6 +106,7 @@ async fn populated() -> gmr_store::sqlite::SqliteStore {
             bound_version: Some(Version::new("v1")),
             bound_at_seq: Some(open_seq),
             saw: Default::default(),
+            rests: Default::default(),
             source: gmr_core::Source::Adjudicated,
             at: chrono::Utc::now(),
         })

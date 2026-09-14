@@ -187,7 +187,7 @@ pub async fn run(
     .collect();
     let absent: Vec<&str> = live
         .iter()
-        .filter(|v| v.sighting == gmr::Sighting::Absent)
+        .filter(|v| v.sighting == gmr::Presence::Absent)
         .map(|v| v.key.as_str())
         .collect();
     let barren: Vec<&str> = ground.barren_anchors.iter().map(|k| k.as_str()).collect();

@@ -4,6 +4,7 @@ pub mod anchor;
 pub mod atlas;
 pub mod bind;
 pub mod check;
+pub mod cite;
 pub mod close;
 pub mod cobound;
 pub mod condense;

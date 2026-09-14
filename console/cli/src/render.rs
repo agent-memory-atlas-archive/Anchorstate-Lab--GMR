@@ -81,7 +81,7 @@ pub fn anchor(g: &Grounded, names: &crate::memories::Names) -> String {
             f.message
         ));
     }
-    if matches!(v.sighting, gmr::Sighting::Absent) {
+    if matches!(v.sighting, gmr::Presence::Absent) {
         out.push_str("  * last observation looked there and found nothing\n");
     }
 
@@ -222,7 +222,7 @@ fn unseen(why: &Blind) -> &'static str {
     }
 }
 
-pub fn reading(r: &gmr::Reading) -> String {
+pub fn reading(r: &gmr::Sample) -> String {
     let mut out = format!("{}", r.key);
     if let Some(addr) = &r.fact_address {
         out.push_str(&format!("\n  cite   {addr}"));

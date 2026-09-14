@@ -156,6 +156,18 @@ pub fn watch_of(shape: &Shape) -> &'static [&'static str] {
     shape.watch
 }
 
+pub fn path_of(shape: &Shape, axis: &str) -> Option<gmr::StatePath> {
+    shape
+        .dims
+        .iter()
+        .find_map(|dim| match (&dim.reads, dim.name == axis) {
+            (Reads::Since { field, .. }, true) => {
+                gmr::StatePath::try_new(format!("now.{field}")).ok()
+            }
+            _ => None,
+        })
+}
+
 pub fn axes_of(shape: &Shape) -> Vec<&'static str> {
     shape.dims.iter().map(|d| d.name).collect()
 }

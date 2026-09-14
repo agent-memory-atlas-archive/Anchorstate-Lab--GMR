@@ -67,7 +67,7 @@ async fn one_read_hands_back_both_the_change_and_the_memory_it_may_have_invalida
             root: dir.path().to_path_buf(),
             id: ProviderId::new("git"),
         }))
-        .journal(Arc::new(MemoryJournal::default()))
+        .store(Arc::new(MemoryJournal::default()))
         .bindings(bindings.clone())
         .sealer(bindings.clone())
         .links(bindings)
@@ -102,8 +102,7 @@ async fn one_read_hands_back_both_the_change_and_the_memory_it_may_have_invalida
             Ref::new("git", "memories/core-modules.md"),
             vec![key.clone()],
         ),
-        Some(Version::new("blob-at-bind-time")),
-        Default::default(),
+        gmr_runtime::Basis::at(Some(Version::new("blob-at-bind-time"))),
         gmr_core::Source::Adjudicated,
     )
     .await

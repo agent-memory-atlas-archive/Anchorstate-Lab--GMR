@@ -16,4 +16,4 @@ try {
   );
 }
 
-module.exports = { ...addon, CONTRACT: "gmr.contract.v12.0" };
+module.exports = { ...addon, CONTRACT: "gmr.contract.v13.0" };
