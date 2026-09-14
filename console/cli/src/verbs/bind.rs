@@ -44,8 +44,7 @@ pub async fn assert_on(
     let landed = rt
         .bind(
             gmr::Binding::on(reference, anchors),
-            version.clone(),
-            Default::default(),
+            gmr::Basis::at(version.clone()),
             source,
         )
         .await?;

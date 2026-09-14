@@ -256,8 +256,7 @@ impl World {
                     Ref::new("git", format!("memories/{name}")),
                     anchors.iter().map(|a| AnchorKey::new(*a)).collect(),
                 ),
-                Some(Version::new(version)),
-                Default::default(),
+                gmr_runtime::Basis::at(Some(Version::new(version))),
                 gmr_core::Source::Adjudicated,
             )
             .await
@@ -274,8 +273,7 @@ impl World {
                     reference,
                     anchors.iter().map(|a| AnchorKey::new(*a)).collect(),
                 ),
-                Some(Version::new(version)),
-                Default::default(),
+                gmr_runtime::Basis::at(Some(Version::new(version))),
                 gmr_core::Source::Adjudicated,
             )
             .await
@@ -491,8 +489,7 @@ async fn an_unanchored_record_is_carried_along_but_marked() {
                 Ref::new("git", "memories/bound.md"),
                 vec![AnchorKey::new("a")],
             ),
-            Some(Version::new("v1")),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(Version::new("v1"))),
             gmr_core::Source::Adjudicated,
         )
         .await
@@ -500,8 +497,7 @@ async fn an_unanchored_record_is_carried_along_but_marked() {
     w.runtime
         .bind(
             gmr_core::Binding::on(Ref::new("git", "memories/loose.md"), vec![]),
-            Some(Version::new("v1")),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(Version::new("v1"))),
             gmr_core::Source::Adjudicated,
         )
         .await
@@ -553,8 +549,7 @@ async fn an_assertion_made_when_the_store_could_not_answer_is_unverified_not_ref
     w.runtime
         .bind(
             gmr_core::Binding::on(reference.clone(), vec![AnchorKey::new("a")]),
-            None,
-            Default::default(),
+            gmr_runtime::Basis::default(),
             gmr_core::Source::SelfAttested,
         )
         .await
@@ -608,8 +603,7 @@ async fn a_later_assertion_that_verified_nothing_does_not_unverify_what_was_veri
     w.runtime
         .bind(
             gmr_core::Binding::on(reference.clone(), vec![AnchorKey::new("a")]),
-            None,
-            Default::default(),
+            gmr_runtime::Basis::default(),
             gmr_core::Source::SelfAttested,
         )
         .await
@@ -681,8 +675,7 @@ async fn asserting_an_empty_anchor_set_takes_nothing_away() {
     w.runtime
         .bind(
             gmr_core::Binding::on(reference.clone(), vec![]),
-            Some(Version::new("v")),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(Version::new("v"))),
             gmr_core::Source::Adjudicated,
         )
         .await
@@ -962,8 +955,7 @@ async fn a_second_kind_of_assertion_on_the_same_link_is_not_a_repeat() {
     w.runtime
         .bind(
             gmr_core::Binding::on(reference.clone(), vec![AnchorKey::new("a")]),
-            version,
-            Default::default(),
+            gmr_runtime::Basis::at(version),
             gmr_core::Source::SelfAttested,
         )
         .await
@@ -1049,8 +1041,7 @@ async fn an_anchor_names_each_memory_once_however_many_assertions_stand_on_it() 
         w.runtime
             .bind(
                 gmr_core::Binding::on(reference.clone(), vec![AnchorKey::new("a")]),
-                version.clone(),
-                Default::default(),
+                gmr_runtime::Basis::at(version.clone()),
                 source,
             )
             .await
@@ -1369,8 +1360,7 @@ async fn a_sentence_bound_to_the_reading_it_was_shown_says_which_one() {
     w.runtime
         .bind(
             gmr_core::Binding::on(claim.clone(), vec![AnchorKey::new("a")]),
-            None,
-            std::collections::BTreeSet::from([saw.clone()]),
+            gmr_runtime::Basis::default().shown(std::collections::BTreeSet::from([saw.clone()])),
             gmr_core::Source::SelfAttested,
         )
         .await
@@ -1415,8 +1405,7 @@ async fn a_sentence_citing_a_reading_this_anchor_never_took_is_not_grounded_by_i
     w.runtime
         .bind(
             gmr_core::Binding::on(claim.clone(), vec![AnchorKey::new("a")]),
-            None,
-            std::collections::BTreeSet::from([elsewhere]),
+            gmr_runtime::Basis::default().shown(std::collections::BTreeSet::from([elsewhere])),
             gmr_core::Source::SelfAttested,
         )
         .await
@@ -1501,8 +1490,7 @@ async fn a_list_that_moved_says_which_element_and_which_field() {
     w.runtime
         .bind(
             gmr_core::Binding::on(claim.clone(), vec![AnchorKey::new("a")]),
-            None,
-            std::collections::BTreeSet::from([saw]),
+            gmr_runtime::Basis::default().shown(std::collections::BTreeSet::from([saw])),
             gmr_core::Source::SelfAttested,
         )
         .await
@@ -1549,8 +1537,7 @@ async fn depending(w: &World, name: &str, anchors: &[&str], source: &str) -> gmr
                 anchors.iter().map(|a| AnchorKey::new(*a)).collect(),
             )
             .depending(source),
-            None,
-            Default::default(),
+            gmr_runtime::Basis::default(),
             gmr_core::Source::SelfAttested,
         )
         .await
@@ -1617,8 +1604,7 @@ async fn a_claim_that_stated_no_invariant_is_not_reported_as_keeping_one() {
     w.runtime
         .bind(
             gmr_core::Binding::on(claim.clone(), vec![AnchorKey::new("a")]),
-            None,
-            Default::default(),
+            gmr_runtime::Basis::default(),
             gmr_core::Source::SelfAttested,
         )
         .await
@@ -1755,8 +1741,7 @@ async fn rebinding_with_a_different_invariant_is_a_new_assertion() {
         w.runtime
             .bind(
                 gmr_core::Binding::on(claim.clone(), vec![AnchorKey::new("a")]).depending(source),
-                None,
-                Default::default(),
+                gmr_runtime::Basis::default(),
                 gmr_core::Source::SelfAttested,
             )
             .await
@@ -1900,8 +1885,7 @@ async fn an_utterance_reaches_nothing_because_links_run_between_records() {
     w.runtime
         .bind(
             gmr_core::Binding::on(claim.clone(), vec![AnchorKey::new("a")]),
-            None,
-            Default::default(),
+            gmr_runtime::Basis::default(),
             gmr_core::Source::SelfAttested,
         )
         .await
@@ -1927,8 +1911,7 @@ async fn an_utterance_on_an_anchor_does_not_take_down_the_verb_that_walks_record
     w.runtime
         .bind(
             gmr_core::Binding::on(gmr_core::Claim::said("turn-12"), vec![AnchorKey::new("a")]),
-            None,
-            Default::default(),
+            gmr_runtime::Basis::default(),
             gmr_core::Source::SelfAttested,
         )
         .await
@@ -1978,8 +1961,7 @@ async fn a_claim_on_several_anchors_looked_at_several_readings() {
                 claim.clone(),
                 vec![AnchorKey::new("a"), AnchorKey::new("b")],
             ),
-            None,
-            saw.iter().cloned().collect(),
+            gmr_runtime::Basis::default().shown(saw.iter().cloned().collect()),
             gmr_core::Source::SelfAttested,
         )
         .await
@@ -2016,8 +1998,7 @@ async fn what_a_claim_asserted_comes_back_with_it() {
     w.runtime
         .bind(
             gmr_core::Binding::on(stored.clone(), vec![AnchorKey::new("a")]),
-            None,
-            Default::default(),
+            gmr_runtime::Basis::default(),
             gmr_core::Source::SelfAttested,
         )
         .await
@@ -2213,8 +2194,7 @@ async fn what_an_agent_said_stands_visible_on_the_anchor() {
     w.runtime
         .bind(
             gmr_core::Binding::on(gmr_core::Claim::said("s-1"), vec![AnchorKey::new("a")]),
-            None,
-            Default::default(),
+            gmr_runtime::Basis::default(),
             gmr_core::Source::SelfAttested,
         )
         .await
@@ -2258,8 +2238,7 @@ async fn condensing_carries_the_grounding_and_revokes_the_utterance() {
         .bind(
             gmr_core::Binding::on(gmr_core::Claim::said("s-1"), vec![AnchorKey::new("a")])
                 .depending("true"),
-            None,
-            Default::default(),
+            gmr_runtime::Basis::default(),
             gmr_core::Source::SelfAttested,
         )
         .await
@@ -2419,8 +2398,7 @@ async fn a_conclusion_on_a_finished_anchor_is_not_reported_as_still_held() {
     w.runtime
         .bind(
             gmr_core::Binding::on(claim.clone(), vec![AnchorKey::new("a")]),
-            None,
-            std::collections::BTreeSet::from([saw]),
+            gmr_runtime::Basis::default().shown(std::collections::BTreeSet::from([saw])),
             gmr_core::Source::SelfAttested,
         )
         .await
@@ -2468,8 +2446,7 @@ async fn a_citation_already_superseded_when_the_conclusion_landed_is_not_reporte
     w.runtime
         .bind(
             gmr_core::Binding::on(claim.clone(), vec![AnchorKey::new("a")]),
-            None,
-            std::collections::BTreeSet::from([old]),
+            gmr_runtime::Basis::default().shown(std::collections::BTreeSet::from([old])),
             gmr_core::Source::SelfAttested,
         )
         .await
@@ -2510,8 +2487,7 @@ async fn a_citation_current_when_bound_stays_seen_after_the_world_later_moves() 
     w.runtime
         .bind(
             gmr_core::Binding::on(claim.clone(), vec![AnchorKey::new("a")]),
-            None,
-            std::collections::BTreeSet::from([saw]),
+            gmr_runtime::Basis::default().shown(std::collections::BTreeSet::from([saw])),
             gmr_core::Source::SelfAttested,
         )
         .await
@@ -2621,8 +2597,7 @@ async fn a_conclusion_whose_every_anchor_finished_is_counted_as_unsupervised() {
     w.runtime
         .bind(
             gmr_core::Binding::on(claim.clone(), vec![AnchorKey::new("a")]),
-            None,
-            Default::default(),
+            gmr_runtime::Basis::default(),
             gmr_core::Source::SelfAttested,
         )
         .await

@@ -1,7 +1,7 @@
 use chrono::Utc;
 use std::collections::BTreeSet;
 
-use gmr_core::{AnchorKey, Binding, Claim, FactAddress, Ref, SaidId, Source, Version};
+use gmr_core::{AnchorKey, Binding, Claim, FactAddress, Ref, Rests, SaidId, Source, Version};
 use serde::Serialize;
 
 use crate::assembly::Runtime;
@@ -9,12 +9,37 @@ use crate::error::RuntimeError;
 use crate::log::AnchorLog;
 use crate::memory::MemoryLens;
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Basis {
+    pub bound_version: Option<Version>,
+    pub saw: BTreeSet<FactAddress>,
+    pub rests: BTreeSet<Rests>,
+}
+
+impl Basis {
+    pub fn at(version: Option<Version>) -> Self {
+        Self {
+            bound_version: version,
+            ..Self::default()
+        }
+    }
+
+    pub fn shown(mut self, saw: BTreeSet<FactAddress>) -> Self {
+        self.saw = saw;
+        self
+    }
+
+    pub fn resting(mut self, rests: BTreeSet<Rests>) -> Self {
+        self.rests = rests;
+        self
+    }
+}
+
 impl Runtime {
     pub async fn bind(
         &self,
         binding: Binding,
-        bound_version: Option<Version>,
-        saw: BTreeSet<FactAddress>,
+        basis: Basis,
         source: Source,
     ) -> Result<Landed, RuntimeError> {
         let Binding {
@@ -40,19 +65,12 @@ impl Runtime {
             depends,
             origin,
         };
-        if bound.says(&asking, bound_version.as_ref(), &saw, source) {
+        if bound.says(&asking, &basis, source) {
             return Ok(landed);
         }
         landed.recorded = true;
         self.memory
-            .bind(
-                &self.log,
-                &asking,
-                bound_version.as_ref(),
-                &saw,
-                source,
-                Utc::now(),
-            )
+            .bind(&self.log, &asking, &basis, source, Utc::now())
             .await?;
         Ok(landed)
     }
@@ -172,8 +190,10 @@ impl Runtime {
             depends: bound.depends().cloned(),
             origin: Some(said.clone()),
         };
-        let saw = bound.saw().clone();
-        let landed = self.bind(binding, Some(version), saw, source).await?;
+        let basis = Basis::at(Some(version))
+            .shown(bound.saw().clone())
+            .resting(bound.rests().clone());
+        let landed = self.bind(binding, basis, source).await?;
         self.revoke(&claim, source).await?;
         Ok(landed)
     }
@@ -213,22 +233,17 @@ async fn reaffirm(
             claim: claim.clone(),
         });
     }
-    let saw = bound.saw().clone();
     let binding = Binding {
         claim: claim.clone(),
         anchors: bound.anchors().to_vec(),
         depends: bound.depends().cloned(),
         origin: bound.origin().cloned(),
     };
+    let basis = Basis::at(bound_version)
+        .shown(bound.saw().clone())
+        .resting(bound.rests().clone());
     memory
-        .bind(
-            log,
-            &binding,
-            bound_version.as_ref(),
-            &saw,
-            Source::Adjudicated,
-            Utc::now(),
-        )
+        .bind(log, &binding, &basis, Source::Adjudicated, Utc::now())
         .await
 }
 

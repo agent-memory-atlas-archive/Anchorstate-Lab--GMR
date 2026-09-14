@@ -27,8 +27,8 @@ impl BindingStore for SqliteBindings {
 
         let mut tx = self.pool.begin().await.map_err(db_err)?;
         let seq: i64 = sqlx::query_scalar(
-            "INSERT INTO bindings (reference, body, bound_version, bound_at_seq, source, asserted_at, baseline_at_seq, saw) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, NULL, ?7) RETURNING seq",
+            "INSERT INTO bindings (reference, body, bound_version, bound_at_seq, source, asserted_at, baseline_at_seq, saw, rests) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, NULL, ?7, ?8) RETURNING seq",
         )
         .bind(claim_key(&binding.claim))
         .bind(&body)
@@ -37,6 +37,7 @@ impl BindingStore for SqliteBindings {
         .bind(asserted.source.as_str())
         .bind(asserted.at.to_rfc3339())
         .bind(looked(&asserted.saw))
+        .bind(rested(&asserted.rests))
         .fetch_one(&mut *tx)
         .await
         .map_err(db_err)?;
@@ -90,7 +91,7 @@ impl BindingStore for SqliteBindings {
         let slots = placeholders(anchors.len(), 1);
         let sql = format!(
             r#"
-            SELECT b.seq, b.body, b.bound_version, b.bound_at_seq, b.source, b.asserted_at, b.saw,
+            SELECT b.seq, b.body, b.bound_version, b.bound_at_seq, b.source, b.asserted_at, b.saw, b.rests,
                    ba.anchor AS live_anchor
             FROM bindings b
             JOIN binding_anchors ba ON ba.seq = b.seq
@@ -114,7 +115,7 @@ impl BindingStore for SqliteBindings {
     async fn binding_of(&self, claim: &Claim) -> Result<Vec<BindingRecord>, StoreError> {
         let rows = sqlx::query(
             r#"
-            SELECT b.seq, b.body, b.bound_version, b.bound_at_seq, b.source, b.asserted_at, b.saw,
+            SELECT b.seq, b.body, b.bound_version, b.bound_at_seq, b.source, b.asserted_at, b.saw, b.rests,
                    ba.anchor AS live_anchor
             FROM bindings b
             LEFT JOIN binding_anchors ba ON ba.seq = b.seq
@@ -136,7 +137,7 @@ impl BindingStore for SqliteBindings {
     async fn all(&self) -> Result<Vec<BindingRecord>, StoreError> {
         let rows = sqlx::query(
             r#"
-            SELECT b.seq, b.body, b.bound_version, b.bound_at_seq, b.source, b.asserted_at, b.saw,
+            SELECT b.seq, b.body, b.bound_version, b.bound_at_seq, b.source, b.asserted_at, b.saw, b.rests,
                    ba.anchor AS live_anchor
             FROM bindings b
             LEFT JOIN binding_anchors ba ON ba.seq = b.seq
@@ -175,6 +176,26 @@ impl Sealer for SqliteBindings {
             .map_err(db_err)?;
         Ok(row.map(|r| r.get::<Vec<u8>, _>("body")))
     }
+}
+
+fn rested(rests: &std::collections::BTreeSet<gmr_core::Rests>) -> Option<String> {
+    match rests.is_empty() {
+        true => None,
+        false => serde_json::to_string(rests).ok(),
+    }
+}
+
+fn resting(held: Option<&str>) -> Result<std::collections::BTreeSet<gmr_core::Rests>, StoreError> {
+    let Some(text) = held else {
+        return Ok(Default::default());
+    };
+    serde_json::from_str(text).map_err(|e| {
+        StoreError::other(format!(
+            "`rests` holds something that is not a rests_on list: {e}. It is what says which \
+             paths of which anchor this assertion depends on, and a ground nothing can be \
+             compared against is worse than none"
+        ))
+    })
 }
 
 fn looked(saw: &std::collections::BTreeSet<FactAddress>) -> Option<String> {
@@ -253,6 +274,7 @@ fn decode_one(seq: Seq, row: sqlx::sqlite::SqliteRow) -> Result<BindingRecord, S
         bound_version,
         bound_at_seq: row.get::<Option<i64>, _>("bound_at_seq").map(|s| s as Seq),
         saw: seen(row.get::<Option<String>, _>("saw").as_deref())?,
+        rests: resting(row.get::<Option<String>, _>("rests").as_deref())?,
         source,
         asserted_at: row
             .get::<Option<String>, _>("asserted_at")

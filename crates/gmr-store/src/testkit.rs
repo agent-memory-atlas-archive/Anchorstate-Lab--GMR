@@ -222,6 +222,7 @@ impl BindingStore for MemoryBindings {
             bound_version: asserted.bound_version.clone(),
             bound_at_seq: asserted.bound_at_seq,
             saw: asserted.saw.clone(),
+            rests: asserted.rests.clone(),
             source: asserted.source,
             asserted_at: Some(asserted.at),
         });

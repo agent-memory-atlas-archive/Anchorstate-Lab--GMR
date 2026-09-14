@@ -563,8 +563,7 @@ async fn corpus_health_sees_barren_anchors() {
     w.runtime
         .bind(
             gmr_core::Binding::on(Ref::new("git", "m.md"), vec![key()]),
-            Some(Version::new("v1")),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(Version::new("v1"))),
             gmr_core::Source::Adjudicated,
         )
         .await
@@ -588,8 +587,7 @@ async fn a_record_left_behind_by_the_anchor_that_watched_it_is_named() {
     w.runtime
         .bind(
             gmr_core::Binding::on(note.clone(), vec![key()]),
-            Some(Version::new("v1")),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(Version::new("v1"))),
             gmr_core::Source::Adjudicated,
         )
         .await
@@ -617,8 +615,7 @@ async fn a_record_left_behind_by_the_anchor_that_watched_it_is_named() {
     w.runtime
         .bind(
             gmr_core::Binding::on(note.clone(), vec![key()]),
-            Some(Version::new("v2")),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(Version::new("v2"))),
             gmr_core::Source::SelfAttested,
         )
         .await
@@ -649,8 +646,7 @@ async fn a_record_bound_to_an_anchor_nobody_ever_opened_is_stranded_too() {
     w.runtime
         .bind(
             gmr_core::Binding::on(note.clone(), vec![AnchorKey::new("never-opened")]),
-            Some(Version::new("v1")),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(Version::new("v1"))),
             gmr_core::Source::Adjudicated,
         )
         .await
@@ -1047,8 +1043,7 @@ async fn a_failed_observation_does_not_move_the_ground_under_a_memory() {
     w.runtime
         .bind(
             gmr_core::Binding::on(Ref::new("git", "m.md"), vec![key()]),
-            Some(Version::new("v1")),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(Version::new("v1"))),
             gmr_core::Source::Adjudicated,
         )
         .await
@@ -1113,8 +1108,7 @@ async fn a_ground_that_moved_and_then_went_dark_says_both() {
     w.runtime
         .bind(
             gmr_core::Binding::on(Ref::new("git", "m.md"), vec![key()]),
-            Some(Version::new("v1")),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(Version::new("v1"))),
             gmr_core::Source::Adjudicated,
         )
         .await
@@ -1193,8 +1187,7 @@ async fn a_memory_about_several_anchors_is_dated_against_each_of_them() {
     w.runtime
         .bind(
             gmr_core::Binding::on(note.clone(), vec![a.clone(), b.clone()]),
-            Some(Version::new("v1")),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(Version::new("v1"))),
             gmr_core::Source::Adjudicated,
         )
         .await
@@ -1241,8 +1234,7 @@ async fn recapturing_a_world_that_did_not_move_leaves_the_memories_on_it_alone()
     w.runtime
         .bind(
             gmr_core::Binding::on(Ref::new("git", "m.md"), vec![key()]),
-            Some(Version::new("v1")),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(Version::new("v1"))),
             gmr_core::Source::Adjudicated,
         )
         .await
@@ -1294,6 +1286,7 @@ async fn a_binding_that_carries_no_date_says_so_rather_than_claiming_no_ground()
             bound_version: Some(Version::new("v1")),
             bound_at_seq: None,
             saw: Default::default(),
+            rests: Default::default(),
             source: gmr_core::Source::Adjudicated,
             at: chrono::Utc::now(),
         })
@@ -1329,8 +1322,7 @@ async fn a_key_only_the_newer_instrument_measures_is_not_the_older_one_disagreei
     w.runtime
         .bind(
             gmr_core::Binding::on(Ref::new("git", "m.md"), vec![key()]),
-            Some(Version::new("v1")),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(Version::new("v1"))),
             gmr_core::Source::Adjudicated,
         )
         .await
@@ -1383,8 +1375,7 @@ async fn a_path_the_newer_instrument_stopped_measuring_still_cannot_be_compared(
     w.runtime
         .bind(
             gmr_core::Binding::on(Ref::new("git", "m.md"), vec![key()]),
-            Some(Version::new("v1")),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(Version::new("v1"))),
             gmr_core::Source::Adjudicated,
         )
         .await
@@ -1433,8 +1424,7 @@ async fn a_reading_a_different_instrument_took_is_not_diffed_against_this_one() 
     w.runtime
         .bind(
             gmr_core::Binding::on(Ref::new("git", "m.md"), vec![key()]),
-            Some(Version::new("v1")),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(Version::new("v1"))),
             gmr_core::Source::Adjudicated,
         )
         .await
@@ -1484,6 +1474,7 @@ async fn re_asserting_an_undated_binding_dates_it_instead_of_writing_nothing() {
             bound_version: Some(Version::new("v1")),
             bound_at_seq: None,
             saw: Default::default(),
+            rests: Default::default(),
             source: gmr_core::Source::Derived,
             at: chrono::Utc::now(),
         })
@@ -1494,8 +1485,7 @@ async fn re_asserting_an_undated_binding_dates_it_instead_of_writing_nothing() {
         .runtime
         .bind(
             gmr_core::Binding::on(note.clone(), vec![key()]),
-            Some(Version::new("v1")),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(Version::new("v1"))),
             gmr_core::Source::Derived,
         )
         .await
@@ -1520,8 +1510,7 @@ async fn re_asserting_an_undated_binding_dates_it_instead_of_writing_nothing() {
         .runtime
         .bind(
             gmr_core::Binding::on(note, vec![key()]),
-            Some(Version::new("v1")),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(Version::new("v1"))),
             gmr_core::Source::Derived,
         )
         .await
@@ -1618,8 +1607,7 @@ async fn a_freshness_bound_decides_whether_to_look_again_not_what_to_report() {
     w.runtime
         .bind(
             gmr_core::Binding::on(Ref::new("git", "m.md"), vec![key()]),
-            Some(Version::new("v1")),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(Version::new("v1"))),
             gmr_core::Source::Adjudicated,
         )
         .await
@@ -1677,8 +1665,7 @@ async fn a_reading_that_could_not_be_refreshed_is_served_with_its_own_date_on_it
     w.runtime
         .bind(
             gmr_core::Binding::on(Ref::new("git", "m.md"), vec![key()]),
-            Some(Version::new("v1")),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(Version::new("v1"))),
             gmr_core::Source::Adjudicated,
         )
         .await
@@ -1770,8 +1757,7 @@ async fn an_unchanged_reading_appends_nothing_and_leaves_the_warrant_where_it_wa
     w.runtime
         .bind(
             gmr_core::Binding::on(Ref::new("git", "m.md"), vec![key()]),
-            Some(Version::new("v1")),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(Version::new("v1"))),
             gmr_core::Source::Adjudicated,
         )
         .await
@@ -1846,8 +1832,7 @@ async fn the_same_record_buckets_under_two_holdings_because_it_hangs_on_two_anch
                 reference.clone(),
                 vec![AnchorKey::new("moves"), AnchorKey::new("stays")],
             ),
-            Some(Version::new("v1")),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(Version::new("v1"))),
             gmr_core::Source::Adjudicated,
         )
         .await
@@ -2209,8 +2194,7 @@ async fn grounding_reads_the_whole_log_only_when_the_binding_predates_the_move()
     w.runtime
         .bind(
             gmr_core::Binding::on(early.clone(), vec![key()]),
-            Some(Version::new("v1")),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(Version::new("v1"))),
             gmr_core::Source::Adjudicated,
         )
         .await
@@ -2225,8 +2209,7 @@ async fn grounding_reads_the_whole_log_only_when_the_binding_predates_the_move()
     w.runtime
         .bind(
             gmr_core::Binding::on(late.clone(), vec![key()]),
-            Some(Version::new("v1")),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(Version::new("v1"))),
             gmr_core::Source::Adjudicated,
         )
         .await
@@ -2508,8 +2491,7 @@ async fn an_anchor_reports_whether_its_firing_ever_changed_a_memory() {
     let bind = |name: &'static str, version: &'static str| {
         w.runtime.bind(
             gmr_core::Binding::on(m(name), vec![key()]),
-            Some(gmr_core::Version::new(version)),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(gmr_core::Version::new(version))),
             gmr_core::Source::Adjudicated,
         )
     };

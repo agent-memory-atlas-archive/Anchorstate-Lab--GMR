@@ -265,3 +265,55 @@ async fn an_anchor_nobody_opened_says_so_instead_of_claiming_the_citation_holds(
         .unwrap();
     assert_eq!(held[0].stands, Stands::Unopened);
 }
+
+#[tokio::test]
+async fn an_assertion_resting_on_one_path_does_not_stale_when_another_moves() {
+    let w = World::new();
+    w.write(r#"{"sig":"fn a()","place":10}"#);
+    w.open().await;
+
+    let address = w.showing().await;
+    let about_sig = gmr_core::Claim::said("about-the-signature");
+    let about_place = gmr_core::Claim::said("about-the-position");
+
+    for (claim, path) in [(&about_sig, "now.sig"), (&about_place, "now.place")] {
+        w.rt.bind(
+            gmr_core::Binding::on(claim.clone(), vec![key()]),
+            gmr_runtime::Basis::default().resting(
+                [Rests::on(key(), address.clone()).at(spelled(path), w.hash_at(path).await)].into(),
+            ),
+            gmr_core::Source::SelfAttested,
+        )
+        .await
+        .unwrap();
+    }
+
+    w.write(r#"{"sig":"fn a()","place":44}"#);
+    w.rt.observe(&key()).await.unwrap();
+
+    let stood =
+        w.rt.ground(
+            &[
+                gmr_runtime::Asked::about(about_sig),
+                gmr_runtime::Asked::about(about_place),
+            ],
+            &gmr_runtime::Instructions::default(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        holding(&stood[0]),
+        gmr_runtime::HoldingKind::Holds,
+        "the file moved, but not on the path this assertion said it rested on. \
+         Whole-state comparison is what turned 59 stale records into 279"
+    );
+    assert_eq!(holding(&stood[1]), gmr_runtime::HoldingKind::Moved);
+}
+
+fn holding(stood: &gmr_runtime::Standing) -> gmr_runtime::HoldingKind {
+    match stood.on.first().expect("bound to one anchor") {
+        gmr_runtime::Anchored::On { warrant, .. } => warrant.holding.kind(),
+        other => panic!("the anchor is open: {other:?}"),
+    }
+}

@@ -88,6 +88,8 @@ pub struct Asserting {
     #[serde(default)]
     pub saw: Vec<String>,
     #[serde(default)]
+    pub rests: Vec<gmr::Rests>,
+    #[serde(default)]
     pub asserts: Option<Value>,
     #[serde(default)]
     pub depends: Option<String>,
@@ -281,7 +283,7 @@ pub fn bound(
     anchors: Vec<String>,
     source: &str,
     how: Asserting,
-) -> Result<(Binding, Option<Version>, BTreeSet<FactAddress>, Source), Fault> {
+) -> Result<(Binding, gmr::Basis, Source), Fault> {
     let claim = asserting(named(claim)?, how.asserts)?;
     let anchors = anchors.into_iter().map(AnchorKey::new).collect();
     let mut binding = Binding::on(claim, anchors);
@@ -296,7 +298,10 @@ pub fn bound(
         .into_iter()
         .map(looked)
         .collect::<Result<BTreeSet<_>, _>>()?;
-    Ok((binding, bound_version, saw, source))
+    let basis = gmr::Basis::at(bound_version)
+        .shown(saw)
+        .resting(how.rests.into_iter().collect());
+    Ok((binding, basis, source))
 }
 
 pub fn revoking(

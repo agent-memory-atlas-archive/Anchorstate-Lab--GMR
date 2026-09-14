@@ -430,6 +430,14 @@ export interface Asserting {
    * One per anchor read: a claim on four anchors looked at four readings.
    */
   saw?: FactAddress[];
+  /**
+   * What it rests on: per anchor, the address and the state paths this
+   * assertion actually depends on. With paths, `ground` reports it moved only
+   * when one of those paths moved — an edit elsewhere in the same file leaves
+   * it standing. Without them it rests on the whole reading, which is what
+   * every assertion written before this field said.
+   */
+  rests?: Rests[];
   /** What a `said:` claim asserted. Recorded, never interpreted. */
   asserts?: unknown;
   /** True while the claim still stands. */

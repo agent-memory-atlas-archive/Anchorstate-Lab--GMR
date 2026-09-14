@@ -26,8 +26,8 @@ pub use gmr_core::{
 pub use gmr_expr::EVALUATOR_VERSION;
 pub use gmr_probe::{ProbeError, ProbeErrorCode, Transport};
 pub use gmr_runtime::{
-    AnchorHealth, AnchorLog, AnchorView, Anchored, Asked, AssemblyError, Before, Blind, Bound,
-    Cited, Corpus, CorpusHealth, Depends, Drifted, Edge, Edges, Evidence, Footing, Grounded,
+    AnchorHealth, AnchorLog, AnchorView, Anchored, Asked, AssemblyError, Basis, Before, Blind,
+    Bound, Cited, Corpus, CorpusHealth, Depends, Drifted, Edge, Edges, Evidence, Footing, Grounded,
     Grounding, Holding, HoldingKind, Instructions, Knowledge, KnowledgeKind, Landed, Linked, Look,
     Looked, MemoryLens, MemoryView, Observed, OpenRequest, Opened, Part, Passed, Policy, Presence,
     Raised, Reached, Revised, Runtime, RuntimeError, Sample, Scheduler, Shown, Standing, Stands,

@@ -21,7 +21,7 @@ mod seal_context;
 mod translate;
 
 pub use assembly::{AssemblyError, Part, Runtime, RuntimeBuilder};
-pub use bind::Landed;
+pub use bind::{Basis, Landed};
 pub use cite::{Cited, Drifted, Look, Stands, Upheld, Why};
 pub use edges::{Edge, Edges, Raised};
 pub use error::RuntimeError;

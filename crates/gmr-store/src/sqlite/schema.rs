@@ -1,4 +1,4 @@
-pub const SCHEMA_VERSION: i64 = 17;
+pub const SCHEMA_VERSION: i64 = 18;
 
 pub const SCHEMA: &str = r#"
 PRAGMA journal_mode = WAL;
@@ -33,8 +33,12 @@ CREATE TABLE IF NOT EXISTS bindings (
     asserted_at     TEXT,              -- RFC3339; NULL predates this column
     baseline_at_seq INTEGER,           -- the bindings row whose fetch established bound_version;
                                        -- NULL while it has never been verified
-    saw             TEXT               -- the fact address this assertion was made in front of;
+    saw             TEXT,              -- the fact address this assertion was made in front of;
                                        -- NULL when the asserter was shown nothing
+    rests           TEXT               -- what it rests on: anchor, address and the state paths
+                                       -- it actually depends on. NULL means it rests on the whole
+                                       -- reading, which is what every row written before this
+                                       -- column existed says
 );
 CREATE INDEX IF NOT EXISTS bindings_by_reference ON bindings(reference, seq);
 
@@ -422,4 +426,8 @@ CREATE TRIGGER IF NOT EXISTS sighting_no_update BEFORE UPDATE ON sighting
     BEGIN SELECT RAISE(ABORT, 'append_only'); END;
 CREATE TRIGGER IF NOT EXISTS sighting_no_delete BEFORE DELETE ON sighting
     BEGIN SELECT RAISE(ABORT, 'append_only'); END;
+"#;
+
+pub const V17_TO_V18: &str = r#"
+ALTER TABLE bindings ADD COLUMN rests TEXT;
 "#;
