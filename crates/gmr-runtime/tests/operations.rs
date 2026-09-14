@@ -50,6 +50,16 @@ impl Counted {
 }
 
 #[async_trait::async_trait]
+impl gmr_store::Readings for Counted {
+    async fn reading(
+        &self,
+        address: &gmr_core::FactAddress,
+    ) -> Result<Option<gmr_core::Reading>, gmr_store::StoreError> {
+        self.inner.reading(address).await
+    }
+}
+
+#[async_trait::async_trait]
 impl gmr_store::Journal for Counted {
     async fn append(
         &self,
@@ -119,7 +129,7 @@ impl World {
         let journal = Arc::new(Counted::default());
         let mut b = Runtime::builder()
             .transport(Arc::new(Shell::new(dir.path(), dir.path().join(".probes"))))
-            .journal(journal.clone())
+            .store(journal.clone())
             .bindings(bindings.clone())
             .sealer(bindings.clone())
             .links(bindings.clone())
@@ -143,7 +153,7 @@ impl World {
         let bindings = self.bindings.clone();
         let runtime = Runtime::builder()
             .transport(Arc::new(Shell::new(dir.path(), dir.path().join(".probes"))))
-            .journal(self.journal.clone())
+            .store(self.journal.clone())
             .bindings(bindings.clone())
             .sealer(bindings.clone())
             .links(bindings.clone())
@@ -2303,7 +2313,7 @@ async fn an_anchor_whose_rules_read_what_its_probe_never_reports_is_refused_at_o
     let (files, probe) = reading_the_file(dir.path());
     let rt = Runtime::builder()
         .transport(files)
-        .journal(Arc::new(MemoryJournal::default()))
+        .store(Arc::new(MemoryJournal::default()))
         .bindings(Arc::new(MemoryBindings::default()))
         .sealer(Arc::new(MemoryBindings::default()))
         .links(Arc::new(MemoryBindings::default()))
@@ -2393,7 +2403,7 @@ async fn a_declaration_the_program_has_outgrown_is_said_at_open() {
     )]);
     let rt = Runtime::builder()
         .transport(Arc::new(gmr_transport::file::Files::new(dir.path(), asks)))
-        .journal(Arc::new(MemoryJournal::default()))
+        .store(Arc::new(MemoryJournal::default()))
         .bindings(Arc::new(MemoryBindings::default()))
         .sealer(Arc::new(MemoryBindings::default()))
         .links(Arc::new(MemoryBindings::default()))
@@ -2443,7 +2453,7 @@ async fn a_probe_reporting_more_than_it_declares_says_so_at_open() {
         .transport(Arc::new(gmr_transport::inproc::InProcess::new(
             ".", registered,
         )))
-        .journal(Arc::new(MemoryJournal::default()))
+        .store(Arc::new(MemoryJournal::default()))
         .bindings(Arc::new(MemoryBindings::default()))
         .sealer(Arc::new(MemoryBindings::default()))
         .links(Arc::new(MemoryBindings::default()))

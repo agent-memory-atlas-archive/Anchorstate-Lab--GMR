@@ -127,7 +127,7 @@ pub async fn opened(asked: Opening) -> Result<Runtime, Fault> {
     let probes = root.join(".anchor").join("probes");
     let mut builder = Runtime::builder()
         .policy(asked.policy)
-        .journal(Arc::new(store.journal()))
+        .store(Arc::new(store.journal()))
         .bindings(Arc::new(store.bindings()))
         .sealer(Arc::new(store.sealer()))
         .links(Arc::new(store.links()))

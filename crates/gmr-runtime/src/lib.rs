@@ -1,6 +1,7 @@
 pub mod assembly;
 pub mod bind;
-pub mod close;
+pub mod cite;
+mod close;
 pub mod contract;
 pub mod edges;
 pub mod error;
@@ -21,6 +22,7 @@ mod translate;
 
 pub use assembly::{AssemblyError, Part, Runtime, RuntimeBuilder};
 pub use bind::Landed;
+pub use cite::{Cited, Drifted, Footprint, Look, Rests, Stands, Upheld, Why};
 pub use edges::{Edge, Edges, Raised};
 pub use error::RuntimeError;
 pub use health::{Aim, AnchorHealth, Corpus, CorpusHealth};

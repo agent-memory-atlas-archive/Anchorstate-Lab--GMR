@@ -27,7 +27,7 @@ impl World {
         let bindings = Arc::new(MemoryBindings::default());
         let rt = Runtime::builder()
             .transport(Arc::new(Shell::new(dir.path(), dir.path().join(".probes"))))
-            .journal(Arc::new(MemoryJournal::default()))
+            .store(Arc::new(MemoryJournal::default()))
             .bindings(bindings.clone())
             .sealer(bindings.clone())
             .links(bindings)
@@ -250,7 +250,7 @@ async fn the_position_reaches_the_probe_and_the_domain_can_move_it() {
     let bindings = Arc::new(MemoryBindings::default());
     let rt = Runtime::builder()
         .transport(Arc::new(Shell::new(dir.path(), dir.path().join(".probes"))))
-        .journal(Arc::new(MemoryJournal::default()))
+        .store(Arc::new(MemoryJournal::default()))
         .bindings(bindings.clone())
         .sealer(bindings.clone())
         .links(bindings)
@@ -331,7 +331,7 @@ async fn the_world_being_empty_is_a_real_answer_and_it_lands_as_an_entry() {
     let bindings = Arc::new(MemoryBindings::default());
     let rt = Runtime::builder()
         .transport(Arc::new(Shell::new(dir.path(), dir.path().join(".probes"))))
-        .journal(Arc::new(MemoryJournal::default()))
+        .store(Arc::new(MemoryJournal::default()))
         .bindings(bindings.clone())
         .sealer(bindings.clone())
         .links(bindings)

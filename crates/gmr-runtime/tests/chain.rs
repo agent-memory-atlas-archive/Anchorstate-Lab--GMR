@@ -67,7 +67,7 @@ async fn one_read_hands_back_both_the_change_and_the_memory_it_may_have_invalida
             root: dir.path().to_path_buf(),
             id: ProviderId::new("git"),
         }))
-        .journal(Arc::new(MemoryJournal::default()))
+        .store(Arc::new(MemoryJournal::default()))
         .bindings(bindings.clone())
         .sealer(bindings.clone())
         .links(bindings)

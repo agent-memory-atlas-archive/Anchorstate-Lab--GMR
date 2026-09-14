@@ -813,7 +813,7 @@ mod tests {
     async fn runtime(dir: &std::path::Path) -> (Runtime, gmr::sqlite::SqliteStore) {
         let store = gmr::sqlite::open(dir.join("memory.db")).await.unwrap();
         let rt = Runtime::builder()
-            .journal(std::sync::Arc::new(store.journal()))
+            .store(std::sync::Arc::new(store.journal()))
             .bindings(std::sync::Arc::new(store.bindings()))
             .sealer(std::sync::Arc::new(store.sealer()))
             .links(std::sync::Arc::new(store.links()))

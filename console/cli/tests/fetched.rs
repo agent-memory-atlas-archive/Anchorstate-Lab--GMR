@@ -20,7 +20,7 @@ async fn a_fetched_anchor_is_declared_in_the_file_even_when_a_note_carries_its_m
 
     let store = gmr::sqlite::open(root.join("memory.db")).await.unwrap();
     let rt = gmr::Runtime::builder()
-        .journal(std::sync::Arc::new(store.journal()))
+        .store(std::sync::Arc::new(store.journal()))
         .bindings(std::sync::Arc::new(store.bindings()))
         .sealer(std::sync::Arc::new(store.sealer()))
         .links(std::sync::Arc::new(store.links()))
@@ -114,7 +114,7 @@ async fn a_config_value_is_watched_as_a_value_and_not_as_a_hash_of_its_file() {
     let store = gmr::sqlite::open(root.join("memory.db")).await.unwrap();
     let stores = gmr_cli::stores::assembled(root).unwrap();
     let mut builder = gmr::Runtime::builder()
-        .journal(std::sync::Arc::new(store.journal()))
+        .store(std::sync::Arc::new(store.journal()))
         .bindings(std::sync::Arc::new(store.bindings()))
         .sealer(std::sync::Arc::new(store.sealer()))
         .links(std::sync::Arc::new(store.links()))
@@ -259,7 +259,7 @@ async fn a_coordinate_that_carries_a_credential_writes_nothing_at_all() {
     let store = gmr::sqlite::open(root.join("memory.db")).await.unwrap();
     let stores = gmr_cli::stores::assembled(root).unwrap();
     let rt = gmr::Runtime::builder()
-        .journal(std::sync::Arc::new(store.journal()))
+        .store(std::sync::Arc::new(store.journal()))
         .bindings(std::sync::Arc::new(store.bindings()))
         .sealer(std::sync::Arc::new(store.sealer()))
         .links(std::sync::Arc::new(store.links()))
@@ -328,7 +328,7 @@ position = { env = "prod" }
     let store = gmr::sqlite::open(root.join("memory.db")).await.unwrap();
     let stores = gmr_cli::stores::assembled(root).unwrap();
     let mut builder = gmr::Runtime::builder()
-        .journal(std::sync::Arc::new(store.journal()))
+        .store(std::sync::Arc::new(store.journal()))
         .bindings(std::sync::Arc::new(store.bindings()))
         .sealer(std::sync::Arc::new(store.sealer()))
         .links(std::sync::Arc::new(store.links()))

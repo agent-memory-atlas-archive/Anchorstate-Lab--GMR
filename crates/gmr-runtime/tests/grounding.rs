@@ -210,7 +210,7 @@ impl World {
             .policy(policy)
             .transport(Arc::new(Shell::new(dir.path(), dir.path().join(".probes"))))
             .provider(provider(dir.path().to_path_buf()))
-            .journal(Arc::new(MemoryJournal::default()))
+            .store(Arc::new(MemoryJournal::default()))
             .bindings(bindings.clone())
             .sealer(bindings.clone())
             .links(bindings)
@@ -1147,7 +1147,7 @@ fn watched() -> (World, Deadline, Deadline) {
             inner: Arc::new(Versioned::new(dir.path().to_path_buf(), true)),
             seen: fetched.clone(),
         }))
-        .journal(Arc::new(MemoryJournal::default()))
+        .store(Arc::new(MemoryJournal::default()))
         .bindings(bindings.clone())
         .sealer(bindings.clone())
         .links(bindings)

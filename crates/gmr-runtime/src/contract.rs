@@ -6,6 +6,7 @@ pub use gmr_core::{
 pub use gmr_content::ContentErrorCode;
 
 pub use crate::bind::Landed;
+pub use crate::cite::{Cited, Drifted, Footprint, Look, Rests, Stands, Upheld, Why};
 pub use crate::edges::{Edge, Edges, Raised};
 pub use crate::link::{Inbound, Links, Reached};
 pub use crate::open::{OpenRequest, Opened, Supersede};
@@ -17,4 +18,4 @@ pub use crate::read::{
 
 pub const CONTRACT: &str = "gmr.contract.v13.0";
 
-pub const SHAPE: &str = "sha256:6f5f2c46385b2ea8245e072ed875bec76dc4ab02616ef5f31833b22842fdc670";
+pub const SHAPE: &str = "sha256:e4d88f2aaaef5aff7dedd6cd2e7720840033f75ddc3154700c21fc1191b23ea7";
