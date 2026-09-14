@@ -1,7 +1,7 @@
 /**
  * @anchorstate-lab/gmr — the verb table.
  *
- * These declarations describe `gmr.contract.v12.0`. That string is what a caller
+ * These declarations describe `gmr.contract.v13.0`. That string is what a caller
  * pins to know which shapes they may match on: a contract type that changes
  * shape without it moving is a break they were told did not happen, and
  * tools/gate.py fails the build when the two disagree.
@@ -24,7 +24,7 @@
  * `no_such_anchor`, `no_provider`, `condensed_into_nothing`. Match the token,
  * not the prose.
  */
-export const CONTRACT: "gmr.contract.v12.0";
+export const CONTRACT: "gmr.contract.v13.0";
 
 /**
  * What a binding is about. `<provider>:<id>` names a record that lives in a

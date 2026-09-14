@@ -1,4 +1,4 @@
-pub const SCHEMA_VERSION: i64 = 16;
+pub const SCHEMA_VERSION: i64 = 17;
 
 pub const SCHEMA: &str = r#"
 PRAGMA journal_mode = WAL;
@@ -118,10 +118,23 @@ CREATE TABLE IF NOT EXISTS settings (
 -- business in an append-only log.
 
 CREATE TABLE IF NOT EXISTS sighting (
-    anchor   TEXT PRIMARY KEY,
-    count    INTEGER NOT NULL DEFAULT 0,
-    last_at  TEXT                        -- RFC3339, as the entries spell it
+    seq        INTEGER PRIMARY KEY AUTOINCREMENT,
+    anchor     TEXT NOT NULL,
+    address    TEXT NOT NULL,            -- which reading was seen
+    taken_at   TEXT NOT NULL,            -- RFC3339, as the entries spell it
+    provenance TEXT                      -- who wrote the value, if the probe can say
 );
+
+CREATE INDEX IF NOT EXISTS sighting_by_anchor  ON sighting(anchor, seq);
+CREATE INDEX IF NOT EXISTS sighting_by_address ON sighting(address, seq);
+
+CREATE TRIGGER IF NOT EXISTS sighting_no_update BEFORE UPDATE ON sighting
+    BEGIN SELECT RAISE(ABORT, 'append_only'); END;
+CREATE TRIGGER IF NOT EXISTS sighting_no_delete BEFORE DELETE ON sighting
+    BEGIN SELECT RAISE(ABORT, 'append_only'); END;
+
+CREATE INDEX IF NOT EXISTS journal_by_address
+    ON journal(json_extract(body, '$.observation.fact_address'));
 
 -- ── Usage: how often a claim was actually served or handed over, and when
 -- last. Residue of use, never a judgement: readers may weigh it, this store
@@ -353,4 +366,60 @@ CREATE TABLE IF NOT EXISTS ledger (
     last_at  TEXT,
     PRIMARY KEY (session, verb)
 );
+"#;
+
+pub const V16_TO_V17: &str = r#"
+CREATE INDEX IF NOT EXISTS journal_by_address
+    ON journal(json_extract(body, '$.observation.fact_address'));
+
+ALTER TABLE sighting RENAME TO sighting_tally;
+
+CREATE TABLE sighting (
+    seq        INTEGER PRIMARY KEY AUTOINCREMENT,
+    anchor     TEXT NOT NULL,
+    address    TEXT NOT NULL,
+    taken_at   TEXT NOT NULL,
+    provenance TEXT
+);
+
+INSERT INTO sighting (anchor, address, taken_at)
+SELECT anchor,
+       json_extract(body, '$.observation.fact_address'),
+       json_extract(body, '$.at')
+FROM journal
+WHERE json_extract(body, '$.observation.fact_address') IS NOT NULL
+ORDER BY seq;
+
+INSERT INTO sighting (anchor, address, taken_at)
+SELECT held.anchor,
+       json_extract(shown.body, '$.observation.fact_address'),
+       json_extract(held.body, '$.at')
+FROM journal held
+JOIN journal shown ON shown.seq = json_extract(held.body, '$.ref_entry')
+WHERE json_extract(held.body, '$.entry') = 'still'
+  AND json_extract(shown.body, '$.observation.fact_address') IS NOT NULL
+ORDER BY held.seq;
+
+INSERT INTO sighting (anchor, address, taken_at)
+SELECT tally.anchor, latest.address, tally.last_at
+FROM sighting_tally tally
+JOIN (SELECT anchor,
+             json_extract(body, '$.observation.fact_address') AS address,
+             max(seq) AS seq
+      FROM journal
+      WHERE json_extract(body, '$.observation.fact_address') IS NOT NULL
+      GROUP BY anchor) latest ON latest.anchor = tally.anchor
+WHERE tally.last_at IS NOT NULL
+  AND tally.last_at > (SELECT COALESCE(max(taken_at), '')
+                       FROM sighting seen WHERE seen.anchor = tally.anchor);
+
+DROP TABLE sighting_tally;
+
+CREATE INDEX IF NOT EXISTS sighting_by_anchor  ON sighting(anchor, seq);
+CREATE INDEX IF NOT EXISTS sighting_by_address ON sighting(address, seq);
+
+CREATE TRIGGER IF NOT EXISTS sighting_no_update BEFORE UPDATE ON sighting
+    BEGIN SELECT RAISE(ABORT, 'append_only'); END;
+CREATE TRIGGER IF NOT EXISTS sighting_no_delete BEFORE DELETE ON sighting
+    BEGIN SELECT RAISE(ABORT, 'append_only'); END;
 "#;

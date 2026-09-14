@@ -78,6 +78,24 @@ impl Journal for MemoryJournal {
     }
 }
 
+#[async_trait]
+impl crate::Readings for MemoryJournal {
+    async fn reading(
+        &self,
+        address: &gmr_core::FactAddress,
+    ) -> Result<Option<gmr_core::Reading>, StoreError> {
+        let inner = self.inner.lock().unwrap();
+        Ok(inner.entries.iter().find_map(|(_, _, entry)| match entry {
+            Entry::Open { observation, .. } | Entry::Transition { observation, .. }
+                if &observation.fact_address == address =>
+            {
+                Some(gmr_core::Reading::of(observation))
+            }
+            _ => None,
+        }))
+    }
+}
+
 #[derive(Default)]
 struct BindingInner {
     bindings: Vec<BindingRecord>,
@@ -345,40 +363,61 @@ struct Slot {
 pub struct MemoryQueue {
     inner: Mutex<HashMap<AnchorKey, Slot>>,
     settings: Mutex<HashMap<AnchorKey, RunSettings>>,
-    sightings: Mutex<HashMap<AnchorKey, crate::Seen>>,
+    sightings: Mutex<Vec<gmr_core::Sighting>>,
     usage: Mutex<HashMap<String, (gmr_core::Claim, crate::Used)>>,
     ledger: Mutex<std::collections::BTreeMap<(String, String), crate::Spending>>,
 }
 
+fn tally(looks: impl Iterator<Item = DateTime<Utc>>) -> crate::Seen {
+    looks.fold(crate::Seen::default(), |mut seen, at| {
+        seen.sightings += 1;
+        seen.last_at = seen.last_at.max(Some(at));
+        seen
+    })
+}
+
 #[async_trait]
 impl crate::Sightings for MemoryQueue {
-    async fn sighted(&self, anchor: &AnchorKey, at: DateTime<Utc>) -> Result<(), StoreError> {
-        let mut held = self.sightings.lock().unwrap();
-        let seen = held.entry(anchor.clone()).or_default();
-        seen.sightings += 1;
-        seen.last_at = Some(at);
+    async fn sighted(&self, sighting: &gmr_core::Sighting) -> Result<(), StoreError> {
+        self.sightings.lock().unwrap().push(sighting.clone());
         Ok(())
     }
 
     async fn seen(&self, anchor: &AnchorKey) -> Result<crate::Seen, StoreError> {
-        Ok(self
-            .sightings
-            .lock()
-            .unwrap()
-            .get(anchor)
-            .copied()
-            .unwrap_or_default())
+        Ok(tally(
+            self.sightings
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|s| &s.anchor == anchor)
+                .map(|s| s.taken_at),
+        ))
     }
 
     async fn all_seen(
         &self,
     ) -> Result<std::collections::BTreeMap<AnchorKey, crate::Seen>, StoreError> {
+        let held = self.sightings.lock().unwrap();
+        let mut out: std::collections::BTreeMap<AnchorKey, crate::Seen> = Default::default();
+        for seen in held.iter() {
+            let tallied = out.entry(seen.anchor.clone()).or_default();
+            tallied.sightings += 1;
+            tallied.last_at = tallied.last_at.max(Some(seen.taken_at));
+        }
+        Ok(out)
+    }
+
+    async fn of(
+        &self,
+        address: &gmr_core::FactAddress,
+    ) -> Result<Vec<gmr_core::Sighting>, StoreError> {
         Ok(self
             .sightings
             .lock()
             .unwrap()
             .iter()
-            .map(|(k, v)| (k.clone(), *v))
+            .filter(|s| &s.address == address)
+            .cloned()
             .collect())
     }
 }

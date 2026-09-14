@@ -146,6 +146,7 @@ async fn open(
         }
     };
 
+    let address = observation.fact_address.clone();
     log.append(
         &key,
         &Entry::Open {
@@ -159,7 +160,7 @@ async fn open(
     )
     .await?;
 
-    scheduler.sighted(&key, at).await?;
+    scheduler.sighted(&key, &address, at).await?;
 
     if let Err(e) = scheduler.set_settings(&key, &request.settings).await {
         warnings.push(format!(
