@@ -1,0 +1,20 @@
+[package]
+name = "gmr-coding-shapes"
+description = "coding 域的形状：坐标上的锚用哪张规则表。"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+gmr-core = { path = "../../../crates/gmr-core" }
+
+[dev-dependencies]
+gmr-expr = { path = "../../../crates/gmr-expr" }
+gmr-coding-pack = { path = "../extract" }
+gmr-survey = { path = "../../../batteries/survey" }
+gmr-transport = { path = "../../../batteries/transport", features = ["inproc"] }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

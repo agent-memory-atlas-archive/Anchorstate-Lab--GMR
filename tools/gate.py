@@ -54,6 +54,7 @@ CLEAN_ZONES = [
     "batteries/provider",
     "batteries/transport",
     "packs/coding/extract",
+    "packs/coding/shapes",
     "console/cli",
     "console/core",
     "console/node",

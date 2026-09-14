@@ -1,6 +1,6 @@
 ---
 about:
-  - console/cli/src/shapes.rs#vocabulary
+  - packs/coding/shapes/src/lib.rs#vocabulary
   - console/cli/src/memories.rs#tombstones
 watch: [sig, logic]
 ---

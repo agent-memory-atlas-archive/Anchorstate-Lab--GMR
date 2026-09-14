@@ -24,6 +24,7 @@ gmr-survey = { path = "../../batteries/survey" }
 gmr-atlas = { path = "../../batteries/atlas" }
 # 域自己的抽取器 —— 链接进来，不 exec
 gmr-coding-pack = { path = "../../packs/coding/extract" }
+gmr-coding-shapes = { path = "../../packs/coding/shapes" }
 
 serde = { workspace = true }
 serde_json = { workspace = true }
