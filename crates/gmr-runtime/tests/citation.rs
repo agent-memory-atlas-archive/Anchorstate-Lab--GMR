@@ -317,3 +317,29 @@ fn holding(stood: &gmr_runtime::Standing) -> gmr_runtime::HoldingKind {
         other => panic!("the anchor is open: {other:?}"),
     }
 }
+
+#[tokio::test]
+async fn an_assertion_cannot_rest_on_a_reading_nobody_ever_took() {
+    let w = World::new();
+    w.write(r#"{"sig":"fn a()","place":10}"#);
+    w.open().await;
+
+    let invented = gmr_core::FactAddress::try_new("c".repeat(64)).unwrap();
+    let refused =
+        w.rt.bind(
+            gmr_core::Binding::on(gmr_core::Claim::said("plausible"), vec![key()]),
+            gmr_runtime::Basis::default().resting(
+                [Rests::on(key(), invented).at(spelled("now.sig"), w.hash_at("now.sig").await)]
+                    .into(),
+            ),
+            gmr_core::Source::SelfAttested,
+        )
+        .await
+        .expect_err("an address this deployment never issued is not a ground");
+    assert_eq!(
+        refused.code(),
+        "no_such_reading",
+        "asking an agent to report its own grounds gets back something plausible; the \
+         refusal is what makes the citation the runtime's word rather than the agent's"
+    );
+}

@@ -48,6 +48,13 @@ impl Runtime {
             depends,
             origin,
         } = binding;
+        for resting in &basis.rests {
+            if self.readings.reading(&resting.address).await?.is_none() {
+                return Err(RuntimeError::NoSuchReading {
+                    address: resting.address.clone(),
+                });
+            }
+        }
         let mut landed = Landed::default();
         for named in anchors {
             let living = self.living(&named).await?;
