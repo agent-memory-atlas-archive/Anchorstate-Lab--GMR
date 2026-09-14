@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use gmr_store::BindingStore;
-use gmr_store::{Journal, Ledger, LinkStore, Queue, Sealer, Settings, Sightings, Usage};
+use gmr_store::{Journal, Ledger, LinkStore, Queue, Readings, Sealer, Settings, Sightings, Usage};
 
 use crate::error::RuntimeError;
 use crate::log::AnchorLog;
@@ -13,6 +13,7 @@ use gmr_content::ContentProvider;
 
 pub struct Runtime {
     pub(crate) log: AnchorLog,
+    pub(crate) readings: Arc<dyn Readings>,
     pub(crate) observer: Observer,
     pub(crate) memory: MemoryLens,
     pub(crate) scheduler: Scheduler,
@@ -96,6 +97,7 @@ impl Runtime {
 pub struct RuntimeBuilder {
     transports: Vec<Arc<dyn gmr_probe::Transport>>,
     journal: Option<Arc<dyn Journal>>,
+    readings: Option<Arc<dyn Readings>>,
     bindings: Option<Arc<dyn BindingStore>>,
     sealer: Option<Arc<dyn Sealer>>,
     links: Option<Arc<dyn LinkStore>>,
@@ -115,8 +117,9 @@ impl RuntimeBuilder {
         self
     }
 
-    pub fn journal(mut self, j: Arc<dyn Journal>) -> Self {
-        self.journal = Some(j);
+    pub fn store<S: Journal + Readings + 'static>(mut self, s: Arc<S>) -> Self {
+        self.journal = Some(s.clone());
+        self.readings = Some(s);
         self
     }
 
@@ -202,6 +205,9 @@ impl RuntimeBuilder {
             log: AnchorLog::new(self.journal.ok_or(AssemblyError::Missing {
                 part: Part::Journal,
             })?),
+            readings: self.readings.ok_or(AssemblyError::Missing {
+                part: Part::Readings,
+            })?,
             observer: Observer::new(self.transports),
             memory: MemoryLens::new(
                 self.bindings.ok_or(AssemblyError::Missing {
@@ -238,6 +244,7 @@ impl RuntimeBuilder {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Part {
     Journal,
+    Readings,
     Bindings,
     Sealer,
     Links,
@@ -249,6 +256,10 @@ impl std::fmt::Display for Part {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
             Self::Journal => "a Journal",
+            Self::Readings => {
+                "a Readings store: an address that resolves to nothing is half a citation, \
+                 and the assertion resting on it cannot be checked by anyone"
+            }
             Self::Bindings => "a BindingStore",
             Self::Sealer => "a Sealer",
             Self::Links => "a LinkStore",
@@ -300,7 +311,7 @@ mod tests {
     fn assembled(providers: [&str; 2]) -> Runtime {
         let bindings = Arc::new(MemoryBindings::default());
         let mut builder = Runtime::builder()
-            .journal(Arc::new(MemoryJournal::default()))
+            .store(Arc::new(MemoryJournal::default()))
             .bindings(bindings.clone())
             .sealer(bindings.clone())
             .links(bindings)
@@ -321,7 +332,7 @@ mod tests {
     #[test]
     fn a_runtime_built_from_a_configuration_is_told_which_part_is_missing() {
         let missing = Runtime::builder()
-            .journal(Arc::new(MemoryJournal::default()))
+            .store(Arc::new(MemoryJournal::default()))
             .try_build();
 
         let Err(AssemblyError::Missing { part }) = missing else {
@@ -340,7 +351,7 @@ mod tests {
     fn the_duplicate_name_check_reports_rather_than_aborts_on_that_path() {
         let bindings = Arc::new(MemoryBindings::default());
         let built = Runtime::builder()
-            .journal(Arc::new(MemoryJournal::default()))
+            .store(Arc::new(MemoryJournal::default()))
             .bindings(bindings.clone())
             .sealer(bindings.clone())
             .links(bindings)
@@ -361,7 +372,7 @@ mod tests {
     fn a_provider_warning_reaches_the_built_runtime() {
         let bindings = Arc::new(MemoryBindings::default());
         let rt = Runtime::builder()
-            .journal(Arc::new(MemoryJournal::default()))
+            .store(Arc::new(MemoryJournal::default()))
             .bindings(bindings.clone())
             .sealer(bindings.clone())
             .links(bindings)
@@ -380,7 +391,7 @@ mod tests {
     fn no_warnings_by_default() {
         let bindings = Arc::new(MemoryBindings::default());
         let rt = Runtime::builder()
-            .journal(Arc::new(MemoryJournal::default()))
+            .store(Arc::new(MemoryJournal::default()))
             .bindings(bindings.clone())
             .sealer(bindings.clone())
             .links(bindings)

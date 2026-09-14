@@ -196,6 +196,25 @@ pub enum Command {
     /// built from it must cite. The cheap fold-only read: no memories are
     /// fetched.
     #[command(hide = true)]
+    /// What did that address read? The value it names, the instrument that read
+    /// it, and every instant it was read. An address this deployment never
+    /// issued is refused rather than answered with something near it.
+    #[command(display_order = 4)]
+    Reading {
+        /// The 64-hex address a read handed out.
+        address: String,
+    },
+
+    /// Do these citations still stand? Answered from the log alone: no probe
+    /// runs, so it says whether what you cited is still current, not what the
+    /// world holds now. Exits 1 if any of them moved.
+    #[command(display_order = 4)]
+    Stands {
+        /// `<anchor>@<address>` for the whole reading, or
+        /// `<anchor>@<address>#<state.path>` for one path of it.
+        cited: Vec<String>,
+    },
+
     Sample {
         /// Anchor key, or `path:line` for a position.
         key: String,

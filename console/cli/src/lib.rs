@@ -137,7 +137,7 @@ pub async fn served(
         .sightings(Arc::new(store.sightings()))
         .usage(Arc::new(store.usage()))
         .ledger(Arc::new(store.ledger()))
-        .journal(Arc::new(store.journal()))
+        .store(Arc::new(store.journal()))
         .bindings(Arc::new(store.bindings()))
         .sealer(Arc::new(store.sealer()))
         .links(Arc::new(store.links()));
@@ -207,6 +207,8 @@ pub async fn served(
             key,
             fresher_than_secs,
         } => verbs::sample::run(&rt, key, fresher_than_secs, json).await,
+        Command::Reading { address } => verbs::cite::reading(&rt, address, json).await,
+        Command::Stands { cited } => verbs::cite::stands(&rt, cited, json).await,
         Command::Atlas { out } => verbs::atlas::run(&rt, &root, names, out, json).await,
         Command::Publish { .. } => unreachable!("publish was handled above"),
         Command::Probes(_) => unreachable!("probes was handled above"),

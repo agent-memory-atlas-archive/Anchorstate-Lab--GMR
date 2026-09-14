@@ -21,7 +21,7 @@ impl World {
         let bindings = Arc::new(MemoryBindings::default());
         let runtime = Runtime::builder()
             .transport(Arc::new(Shell::new(dir.path(), dir.path().join(".probes"))))
-            .journal(journal.clone())
+            .store(journal.clone())
             .bindings(bindings.clone())
             .sealer(bindings.clone())
             .links(bindings)

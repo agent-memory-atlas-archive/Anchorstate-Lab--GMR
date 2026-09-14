@@ -88,6 +88,8 @@ pub struct Asserting {
     #[serde(default)]
     pub saw: Vec<String>,
     #[serde(default)]
+    pub rests: Vec<gmr::Rests>,
+    #[serde(default)]
     pub asserts: Option<Value>,
     #[serde(default)]
     pub depends: Option<String>,
@@ -127,7 +129,7 @@ pub async fn opened(asked: Opening) -> Result<Runtime, Fault> {
     let probes = root.join(".anchor").join("probes");
     let mut builder = Runtime::builder()
         .policy(asked.policy)
-        .journal(Arc::new(store.journal()))
+        .store(Arc::new(store.journal()))
         .bindings(Arc::new(store.bindings()))
         .sealer(Arc::new(store.sealer()))
         .links(Arc::new(store.links()))
@@ -256,6 +258,15 @@ pub fn looked(address: String) -> Result<FactAddress, Fault> {
     })
 }
 
+pub fn addressed(address: String) -> Result<gmr::FactAddress, Fault> {
+    gmr::FactAddress::try_new(address.clone()).map_err(|e| {
+        Fault::refused(format!(
+            "`{address}` is not a fact address ({e}). An address is the sha256 a read entry \
+             issued for a reading; it is 64 hex characters and nothing else parses as one"
+        ))
+    })
+}
+
 pub fn stored(address: String) -> Result<gmr::Ref, Fault> {
     match named(address)? {
         Claim::Stored(reference) => Ok(reference),
@@ -272,7 +283,7 @@ pub fn bound(
     anchors: Vec<String>,
     source: &str,
     how: Asserting,
-) -> Result<(Binding, Option<Version>, BTreeSet<FactAddress>, Source), Fault> {
+) -> Result<(Binding, gmr::Basis, Source), Fault> {
     let claim = asserting(named(claim)?, how.asserts)?;
     let anchors = anchors.into_iter().map(AnchorKey::new).collect();
     let mut binding = Binding::on(claim, anchors);
@@ -287,7 +298,10 @@ pub fn bound(
         .into_iter()
         .map(looked)
         .collect::<Result<BTreeSet<_>, _>>()?;
-    Ok((binding, bound_version, saw, source))
+    let basis = gmr::Basis::at(bound_version)
+        .shown(saw)
+        .resting(how.rests.into_iter().collect());
+    Ok((binding, basis, source))
 }
 
 pub fn revoking(

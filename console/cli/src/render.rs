@@ -81,7 +81,7 @@ pub fn anchor(g: &Grounded, names: &crate::memories::Names) -> String {
             f.message
         ));
     }
-    if matches!(v.sighting, gmr::Sighting::Absent) {
+    if matches!(v.sighting, gmr::Presence::Absent) {
         out.push_str("  * last observation looked there and found nothing\n");
     }
 
@@ -222,7 +222,7 @@ fn unseen(why: &Blind) -> &'static str {
     }
 }
 
-pub fn reading(r: &gmr::Reading) -> String {
+pub fn reading(r: &gmr::Sample) -> String {
     let mut out = format!("{}", r.key);
     if let Some(addr) = &r.fact_address {
         out.push_str(&format!("\n  cite   {addr}"));
@@ -242,4 +242,37 @@ pub fn reading(r: &gmr::Reading) -> String {
     }
     out.push('\n');
     out
+}
+
+pub fn rules_as_hash(view: &mut Value) -> Result<(), crate::error::CliError> {
+    let Some(anchor) = view.get_mut("anchor").and_then(Value::as_object_mut) else {
+        return Ok(());
+    };
+    let Some(transitions) = anchor.remove("transitions") else {
+        return Ok(());
+    };
+    let hash = gmr::core::content_hash_of(&transitions)
+        .map_err(|e| crate::error::CliError(e.to_string()))?;
+    anchor.insert("rules".to_owned(), Value::String(hash.to_string()));
+    Ok(())
+}
+
+#[cfg(test)]
+mod rules_on_the_wire {
+    use super::*;
+
+    #[test]
+    fn a_read_hands_out_the_rule_tables_hash_and_not_the_table() {
+        let table = serde_json::json!([{ "when": { "source": "true", "hash": "a" }, "to": { "source": "{}", "hash": "b" } }]);
+        let mut view = serde_json::json!({ "key": "k", "anchor": { "key": "k", "transitions": table.clone(), "terminal": [] }, "memories": [] });
+        rules_as_hash(&mut view).unwrap();
+        assert!(view["anchor"].get("transitions").is_none());
+        assert_eq!(
+            view["anchor"]["rules"],
+            Value::String(gmr::core::content_hash_of(&table).unwrap().to_string())
+        );
+        let mut bare = serde_json::json!({ "key": "k" });
+        rules_as_hash(&mut bare).unwrap();
+        assert_eq!(bare, serde_json::json!({ "key": "k" }));
+    }
 }

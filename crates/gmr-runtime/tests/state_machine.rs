@@ -4,7 +4,7 @@ use gmr_core::{
     AnchorKey, Change, Expr, Kind, ProbeRef, ReasonClass, Retain, Rule, RunSettings, State,
     StatusId, Transitions, fold,
 };
-use gmr_runtime::{Observed, OpenRequest, Runtime, Sighting};
+use gmr_runtime::{Observed, OpenRequest, Presence, Runtime};
 use gmr_store::testkit::{MemoryBindings, MemoryJournal, MemoryQueue};
 use gmr_transport::shell::Shell;
 
@@ -27,7 +27,7 @@ impl World {
         let bindings = Arc::new(MemoryBindings::default());
         let rt = Runtime::builder()
             .transport(Arc::new(Shell::new(dir.path(), dir.path().join(".probes"))))
-            .journal(Arc::new(MemoryJournal::default()))
+            .store(Arc::new(MemoryJournal::default()))
             .bindings(bindings.clone())
             .sealer(bindings.clone())
             .links(bindings)
@@ -250,7 +250,7 @@ async fn the_position_reaches_the_probe_and_the_domain_can_move_it() {
     let bindings = Arc::new(MemoryBindings::default());
     let rt = Runtime::builder()
         .transport(Arc::new(Shell::new(dir.path(), dir.path().join(".probes"))))
-        .journal(Arc::new(MemoryJournal::default()))
+        .store(Arc::new(MemoryJournal::default()))
         .bindings(bindings.clone())
         .sealer(bindings.clone())
         .links(bindings)
@@ -331,7 +331,7 @@ async fn the_world_being_empty_is_a_real_answer_and_it_lands_as_an_entry() {
     let bindings = Arc::new(MemoryBindings::default());
     let rt = Runtime::builder()
         .transport(Arc::new(Shell::new(dir.path(), dir.path().join(".probes"))))
-        .journal(Arc::new(MemoryJournal::default()))
+        .store(Arc::new(MemoryJournal::default()))
         .bindings(bindings.clone())
         .sealer(bindings.clone())
         .links(bindings)
@@ -357,7 +357,7 @@ async fn the_world_being_empty_is_a_real_answer_and_it_lands_as_an_entry() {
     .unwrap();
 
     let view = rt.read(&key()).await.unwrap();
-    assert_eq!(view.sighting, Sighting::Absent);
+    assert_eq!(view.sighting, Presence::Absent);
     assert_eq!(view.status.map(|s| s.to_string()).as_deref(), Some("empty"));
     assert_eq!(
         view.faltering, None,
@@ -751,8 +751,7 @@ async fn an_assertion_naming_a_superseded_generation_lands_on_the_living_one() {
     let landed =
         w.rt.bind(
             gmr_core::Binding::on(reference.clone(), vec![key()]),
-            Some(Version::new("v1")),
-            Default::default(),
+            gmr_runtime::Basis::at(Some(Version::new("v1"))),
             Source::SelfAttested,
         )
         .await
@@ -786,8 +785,7 @@ async fn an_assertion_naming_a_superseded_generation_lands_on_the_living_one() {
         .bind(
             w.rt.log(),
             &gmr_core::Binding::on(carried.clone(), vec![key()]),
-            Some(&Version::new("v1")),
-            &Default::default(),
+            &gmr_runtime::Basis::at(Some(Version::new("v1"))),
             Source::Adjudicated,
             chrono::Utc::now(),
         )

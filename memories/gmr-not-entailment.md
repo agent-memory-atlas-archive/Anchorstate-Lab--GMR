@@ -11,11 +11,18 @@ versions check that the output is actually entailed by it. That field answers
 **was there ground for this sentence when it was said**. It is a one-shot
 question and it is answered at generation time.
 
-GMR answers a different one: **is that ground still there, and still that
-shape**. Continuous, and re-asked every time the world moves. `saw` / `shown`
-([[runtime-ground]]) answer a third: **was the sentence built from that ground
-at all**, which is neither of the first two and lives on the delivery path
-rather than in a post-hoc annotation.
+GMR answers that one too, and not by doing less of it. The field's answer is an
+**annotation**: a source written beside the text, on the generator's own word,
+leading nowhere and telling nobody when it is wrong. GMR's answer is an
+**address** — issued by the read entry, unforgeable by the caller,
+dereferenceable back to the value and the instrument that produced it, and
+recomputable by a third party. The same question, a different kind of answer.
+
+It then answers one the field does not ask: **is that ground still there, and
+still that shape**. Continuous, and re-asked every time the world moves. `saw` /
+`shown` ([[runtime-ground]]) answer a third: **was the sentence built from that
+ground at all**, which lives on the delivery path rather than in a post-hoc
+annotation.
 
 None of the three substitutes for another. A correctly cited sentence is still
 wrong once the source is rewritten; a perfectly anchored sentence whose author
@@ -41,6 +48,11 @@ states, and reports what the expression said. The base supplies no opinion about
 whether that was the right expression.
 
 ## When this changes, ask
+
+Does an argument appear that GMR should skip something because retrieving
+assistants already do it? The three questions above are distinct, and answering
+the first one with an address rather than an annotation is not duplication. What
+the base declines is entailment, named above — never citation.
 
 Does anything in `crates/` start comparing a claim's content against a reading?
 That is entailment, and it is the boundary this section names. A domain may do

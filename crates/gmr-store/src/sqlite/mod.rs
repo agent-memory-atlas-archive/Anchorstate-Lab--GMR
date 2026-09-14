@@ -4,6 +4,7 @@ pub mod ledger;
 pub mod links;
 pub mod portable;
 pub mod queue;
+pub mod readings;
 pub mod schema;
 pub mod settings;
 pub mod sightings;
@@ -131,6 +132,8 @@ pub(crate) const LADDER: &[(i64, Rung)] = &[
     (13, Rung::Sql(schema::V13_TO_V14)),
     (14, Rung::Sql(schema::V14_TO_V15)),
     (15, Rung::Sql(schema::V15_TO_V16)),
+    (16, Rung::Sql(schema::V16_TO_V17)),
+    (17, Rung::Sql(schema::V17_TO_V18)),
 ];
 
 async fn migrate(pool: &SqlitePool) -> Result<(), StoreError> {
@@ -319,6 +322,10 @@ impl SqliteStore {
 
     pub fn sightings(&self) -> SqliteQueue {
         SqliteQueue::new(self.pool.clone())
+    }
+
+    pub fn readings(&self) -> SqliteJournal {
+        SqliteJournal::new(self.pool.clone())
     }
 
     pub fn usage(&self) -> SqliteQueue {
@@ -639,6 +646,194 @@ CREATE TRIGGER IF NOT EXISTS sealed_no_delete BEFORE DELETE ON sealed
         assert_eq!(
             budget, None,
             "a column that did not exist reads as no opinion"
+        );
+    }
+
+    fn transition(address: &str, at: &str) -> String {
+        let entry = gmr_core::Entry::Transition {
+            observation: gmr_core::Observation {
+                outcome: gmr_core::Outcome::Found {
+                    facts: gmr_core::Facts::new(serde_json::json!({ "shape": "(a)->c" })),
+                },
+                fact_address: gmr_core::FactAddress::try_new(address.to_owned()).unwrap(),
+                versions: gmr_core::Versions {
+                    declaration: gmr_core::ContentHash::try_new("d".repeat(64)).unwrap(),
+                    derivation: gmr_core::Derivation {
+                        observes: Default::default(),
+                        version: gmr_core::ProbeVersion::try_new("a".repeat(64)).unwrap(),
+                        verifiability: gmr_core::Verifiability::Closed,
+                    },
+                    evaluator: "eval-1".to_owned(),
+                },
+            },
+            state: gmr_core::State::new(serde_json::json!({ "status": "settled" })),
+            at: chrono::DateTime::parse_from_rfc3339(at).unwrap().into(),
+        };
+        serde_json::to_string(&entry).expect("an entry serializes")
+    }
+
+    #[tokio::test]
+    async fn an_address_the_journal_ever_recorded_hands_back_the_value_it_names() {
+        use crate::Readings;
+
+        let store = open_in_memory().await.unwrap();
+        let address = "b".repeat(64);
+        sqlx::query("INSERT INTO journal (seq, anchor, fence, body) VALUES (1, 'a#b', 0, ?1)")
+            .bind(transition(&address, "2026-01-01T00:00:00Z"))
+            .execute(store.pool())
+            .await
+            .unwrap();
+
+        let held = gmr_core::FactAddress::try_new(address.clone()).unwrap();
+        let back = store
+            .readings()
+            .reading(&held)
+            .await
+            .unwrap()
+            .expect("an address the journal recorded resolves");
+        assert_eq!(back.address, held);
+        assert_eq!(
+            back.facts().map(|f| f.as_value().clone()),
+            Some(serde_json::json!({ "shape": "(a)->c" })),
+            "the address is the identity of the value, so it has to give the value back"
+        );
+
+        let never = gmr_core::FactAddress::try_new("c".repeat(64)).unwrap();
+        assert_eq!(
+            store.readings().reading(&never).await.unwrap(),
+            None,
+            "and an address nobody issued resolves to nothing rather than to something near it"
+        );
+    }
+
+    #[tokio::test]
+    async fn one_value_read_twice_is_one_reading_and_two_sightings() {
+        use crate::{Readings, Sightings};
+
+        let store = open_in_memory().await.unwrap();
+        let address = gmr_core::FactAddress::try_new("b".repeat(64)).unwrap();
+        let anchor = gmr_core::AnchorKey::new("a#b");
+        sqlx::query("INSERT INTO journal (seq, anchor, fence, body) VALUES (1, 'a#b', 0, ?1)")
+            .bind(transition(address.as_str(), "2026-01-01T00:00:00Z"))
+            .execute(store.pool())
+            .await
+            .unwrap();
+
+        for minute in [5, 9] {
+            store
+                .sightings()
+                .sighted(&gmr_core::Sighting::new(
+                    anchor.clone(),
+                    address.clone(),
+                    chrono::DateTime::parse_from_rfc3339(&format!("2026-01-01T12:0{minute}:00Z"))
+                        .unwrap()
+                        .into(),
+                ))
+                .await
+                .unwrap();
+        }
+
+        let looks = store.sightings().of(&address).await.unwrap();
+        assert_eq!(
+            looks.len(),
+            2,
+            "12:05 and 12:09 both happened; content addressing folds the value, not the reads"
+        );
+        assert_eq!(looks[0].anchor, anchor);
+        assert_ne!(looks[0].taken_at, looks[1].taken_at);
+        assert!(store.readings().reading(&address).await.unwrap().is_some());
+    }
+
+    #[tokio::test]
+    async fn a_v16_database_carries_every_look_the_journal_recorded_into_the_sighting_log() {
+        let pool = open_in_memory().await.unwrap();
+        let pool = pool.pool().clone();
+        sqlx::query("DROP TABLE sighting")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::raw_sql(
+            "CREATE TABLE sighting (anchor TEXT PRIMARY KEY, count INTEGER NOT NULL DEFAULT 0, last_at TEXT);",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        for (seq, at) in [(1, "2026-01-01T00:00:00Z"), (2, "2026-01-02T00:00:00Z")] {
+            sqlx::query("INSERT INTO journal (seq, anchor, fence, body) VALUES (?1, 'a#b', 0, ?2)")
+                .bind(seq)
+                .bind(transition(&"b".repeat(64), at))
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+        sqlx::query("INSERT INTO sighting VALUES ('a#b', 9, '2026-03-01T00:00:00Z')")
+            .execute(&pool)
+            .await
+            .unwrap();
+        stamp(&pool, 16).await;
+
+        climb(&pool, 17, LADDER).await.unwrap();
+
+        let rows: Vec<(String, String, String)> =
+            sqlx::query_as("SELECT anchor, address, taken_at FROM sighting ORDER BY seq")
+                .fetch_all(&pool)
+                .await
+                .unwrap();
+        assert_eq!(
+            rows.len(),
+            3,
+            "two looks the journal recorded, plus one carrying the tally's last_at              forward so an upgrade does not make every anchor look never-seen: {rows:?}"
+        );
+        assert!(
+            rows.iter()
+                .all(|(_, address, _)| address == &"b".repeat(64))
+        );
+        assert_eq!(rows[2].2, "2026-03-01T00:00:00Z");
+
+        assert!(
+            sqlx::query("DELETE FROM sighting")
+                .execute(&pool)
+                .await
+                .is_err(),
+            "the sighting log is append-only: a read that happened cannot be un-happened"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_tally_no_later_than_the_journal_adds_no_phantom_look() {
+        let pool = open_in_memory().await.unwrap();
+        let pool = pool.pool().clone();
+        sqlx::query("DROP TABLE sighting")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::raw_sql(
+            "CREATE TABLE sighting (anchor TEXT PRIMARY KEY, count INTEGER NOT NULL DEFAULT 0, last_at TEXT);",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query("INSERT INTO journal (seq, anchor, fence, body) VALUES (1, 'a#b', 0, ?1)")
+            .bind(transition(&"b".repeat(64), "2026-01-02T00:00:00Z"))
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO sighting VALUES ('a#b', 9, '2026-01-01T00:00:00Z')")
+            .execute(&pool)
+            .await
+            .unwrap();
+        stamp(&pool, 16).await;
+
+        climb(&pool, 17, LADDER).await.unwrap();
+
+        let looks: i64 = sqlx::query_scalar("SELECT count(*) FROM sighting")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            looks, 1,
+            "the tally only says when we last looked; if the journal already knows about              a later look there is nothing to carry"
         );
     }
 

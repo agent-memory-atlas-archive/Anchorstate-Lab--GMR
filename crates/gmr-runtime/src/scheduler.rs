@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use chrono::{DateTime, Duration, Utc};
-use gmr_core::{AnchorKey, RunSettings};
+use gmr_core::{AnchorKey, FactAddress, RunSettings, Sighting};
 use gmr_store::{Disposition, Queue, Seen, Settings, Sightings, Ticket};
 
 use crate::error::RuntimeError;
@@ -29,8 +29,20 @@ impl Scheduler {
         }
     }
 
-    pub async fn sighted(&self, anchor: &AnchorKey, at: DateTime<Utc>) -> Result<(), RuntimeError> {
-        Ok(self.sightings.sighted(anchor, at).await?)
+    pub async fn sighted(
+        &self,
+        anchor: &AnchorKey,
+        address: &FactAddress,
+        at: DateTime<Utc>,
+    ) -> Result<(), RuntimeError> {
+        Ok(self
+            .sightings
+            .sighted(&Sighting::new(anchor.clone(), address.clone(), at))
+            .await?)
+    }
+
+    pub async fn looks_at(&self, address: &FactAddress) -> Result<Vec<Sighting>, RuntimeError> {
+        Ok(self.sightings.of(address).await?)
     }
 
     pub async fn seen(&self, anchor: &AnchorKey) -> Result<Seen, RuntimeError> {

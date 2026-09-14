@@ -155,15 +155,10 @@ impl Gmr {
             Some(stated) => ok(core::said(stated))?,
             None => core::Asserting::default(),
         };
-        let (binding, bound_version, saw, source) = ok(core::bound(claim, anchors, &source, how))?;
+        let (binding, basis, source) = ok(core::bound(claim, anchors, &source, how))?;
         let rt = Arc::clone(&self.rt);
         let out = self.run(py, async move {
-            ok(core::served(
-                &rt,
-                "bind",
-                rt.bind(binding, bound_version, saw, source).await,
-            )
-            .await)
+            ok(core::served(&rt, "bind", rt.bind(binding, basis, source).await).await)
         })?;
         handed(py, out)
     }

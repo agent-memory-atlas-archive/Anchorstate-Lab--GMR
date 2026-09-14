@@ -82,7 +82,7 @@ impl Instructions {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Sighting {
+pub enum Presence {
     Found,
     Absent,
 }
@@ -93,7 +93,7 @@ pub struct AnchorView {
     pub anchor: Anchor,
     pub state: State,
     pub status: Option<StatusId>,
-    pub sighting: Sighting,
+    pub sighting: Presence,
     pub closed: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub faltering: Option<Faltering>,
@@ -108,9 +108,9 @@ pub struct AnchorView {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct Reading {
+pub struct Sample {
     pub key: AnchorKey,
-    pub sighting: Sighting,
+    pub sighting: Presence,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub facts: Option<Facts>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -121,7 +121,7 @@ pub struct Reading {
     pub knowledge: Knowledge,
 }
 
-impl From<AnchorView> for Reading {
+impl From<AnchorView> for Sample {
     fn from(view: AnchorView) -> Self {
         Self {
             knowledge: knowledge_of(&view),
@@ -341,6 +341,7 @@ pub struct Asked {
     pub claim: Claim,
     pub anchors: Vec<AnchorKey>,
     pub saw: BTreeSet<FactAddress>,
+    pub rests: BTreeSet<gmr_core::Rests>,
     pub depends: Option<gmr_core::Expr>,
 }
 
@@ -350,6 +351,7 @@ impl Asked {
             claim,
             anchors: Vec::new(),
             saw: BTreeSet::new(),
+            rests: BTreeSet::new(),
             depends: None,
         }
     }
@@ -374,17 +376,29 @@ impl Asked {
     }
 }
 
-enum Rests<'a> {
+enum Held<'a> {
     Stored(&'a crate::memory::Bound),
     Inline(&'a Asked),
 }
 
-impl Rests<'_> {
+impl Held<'_> {
     fn anchors(&self) -> &[AnchorKey] {
         match self {
             Self::Stored(bound) => bound.anchors(),
             Self::Inline(asked) => &asked.anchors,
         }
+    }
+
+    fn footprints(&self, anchor: &AnchorKey) -> Vec<gmr_core::Footprint> {
+        let resting = match self {
+            Self::Stored(bound) => bound.rests().iter().collect::<Vec<_>>(),
+            Self::Inline(asked) => asked.rests.iter().collect(),
+        };
+        resting
+            .into_iter()
+            .filter(|r| &r.anchor == anchor)
+            .flat_map(|r| r.paths.iter().cloned())
+            .collect()
     }
 
     fn saw(&self) -> &BTreeSet<FactAddress> {
@@ -623,12 +637,12 @@ impl Runtime {
             .0)
     }
 
-    pub async fn sample_all(&self) -> Result<Vec<Reading>, RuntimeError> {
+    pub async fn sample_all(&self) -> Result<Vec<Sample>, RuntimeError> {
         Ok(self
             .read_all()
             .await?
             .into_iter()
-            .map(Reading::from)
+            .map(Sample::from)
             .collect())
     }
 
@@ -646,7 +660,7 @@ impl Runtime {
         &self,
         key: &AnchorKey,
         how: &Instructions,
-    ) -> Result<Reading, RuntimeError> {
+    ) -> Result<Sample, RuntimeError> {
         self.refresh(key, how).await?;
         Ok(stand(&self.log, key, &self.scheduler.seen(key).await?)
             .await?
@@ -731,15 +745,15 @@ impl Runtime {
             }
             bound.push(held);
         }
-        let rests: Vec<Rests<'_>> = asked
+        let held_by: Vec<Held<'_>> = asked
             .iter()
             .zip(&bound)
             .map(|(one, held)| match held.is_empty() {
-                true => Rests::Inline(one),
-                false => Rests::Stored(held),
+                true => Held::Inline(one),
+                false => Held::Stored(held),
             })
             .collect();
-        let keys: Vec<AnchorKey> = rests
+        let keys: Vec<AnchorKey> = held_by
             .iter()
             .flat_map(|r| r.anchors().iter().cloned())
             .collect::<BTreeSet<_>>()
@@ -755,14 +769,14 @@ impl Runtime {
 
         let (stood, records) = try_join(
             self.stood_all(&keys, how, &probing),
-            self.records_of(asked, &rests, &reading, policy.content_call(), how.lean),
+            self.records_of(asked, &held_by, &reading, policy.content_call(), how.lean),
         )
         .await?;
 
         let mut out = Vec::with_capacity(asked.len());
-        for ((one, held), record) in asked.iter().zip(&rests).zip(records) {
+        for ((one, held), record) in asked.iter().zip(&held_by).zip(records) {
             let claim = &one.claim;
-            if matches!(held, Rests::Stored(_)) {
+            if matches!(held, Held::Stored(_)) {
                 self.used(claim).await?;
             }
             let mut on = Vec::with_capacity(held.anchors().len());
@@ -844,13 +858,13 @@ impl Runtime {
     async fn records_of(
         &self,
         asked: &[Asked],
-        rests: &[Rests<'_>],
+        held_by: &[Held<'_>],
         total: &Budget,
         call: Duration,
         lean: bool,
     ) -> Result<Vec<Option<Grounding>>, RuntimeError> {
         let mut out = Vec::with_capacity(asked.len());
-        for (one, held) in asked.iter().zip(rests) {
+        for (one, held) in asked.iter().zip(held_by) {
             out.push(match one.claim.stored() {
                 None => None,
                 Some(reference) => Some(
@@ -896,7 +910,7 @@ impl Runtime {
 async fn anchored(
     log: &AnchorLog,
     key: &AnchorKey,
-    held: &Rests<'_>,
+    held: &Held<'_>,
     stood: Option<&(AnchorView, Option<Seq>)>,
 ) -> Result<Anchored, RuntimeError> {
     let Some((view, moved_at)) = stood else {
@@ -907,7 +921,9 @@ async fn anchored(
     let shown = shown_at(log, key, &saw, bound_at, view.fact_address.as_ref()).await?;
     Ok(Anchored::On {
         key: key.clone(),
-        warrant: Box::new(warranted(log, key, bound_at, view, *moved_at).await?),
+        warrant: Box::new(
+            warranted(log, key, bound_at, view, *moved_at, &held.footprints(key)).await?,
+        ),
         evidence: Box::new(Evidence {
             reading: view.fact_address.clone(),
             instrument: view.derivation.as_ref().map(|d| d.version.clone()),
@@ -919,7 +935,7 @@ async fn anchored(
     })
 }
 
-fn depends(held: &Rests<'_>, stood: &BTreeMap<AnchorKey, (AnchorView, Option<Seq>)>) -> Depends {
+fn depends(held: &Held<'_>, stood: &BTreeMap<AnchorKey, (AnchorView, Option<Seq>)>) -> Depends {
     let Some(source) = held.depends() else {
         return Depends::Unstated;
     };
@@ -1113,9 +1129,10 @@ async fn warranted(
     bound_at_seq: Option<Seq>,
     view: &AnchorView,
     moved_at: Option<Seq>,
+    footprints: &[gmr_core::Footprint],
 ) -> Result<Warrant, RuntimeError> {
     Ok(Warrant {
-        holding: holding(log, key, bound_at_seq, view, moved_at).await?,
+        holding: holding(log, key, bound_at_seq, view, moved_at, footprints).await?,
         knowledge: knowledge_of(view),
     })
 }
@@ -1147,11 +1164,12 @@ async fn holding(
     bound_at_seq: Option<Seq>,
     view: &AnchorView,
     moved_at: Option<Seq>,
+    footprints: &[gmr_core::Footprint],
 ) -> Result<Holding, RuntimeError> {
     if view.closed {
         return Ok(Holding::Finished);
     }
-    if view.sighting == Sighting::Absent {
+    if view.sighting == Presence::Absent {
         return Ok(Holding::Absent);
     }
     let (Some(bound), Some(moved)) = (bound_at_seq, moved_at) else {
@@ -1160,7 +1178,31 @@ async fn holding(
     if bound >= moved {
         return Ok(Holding::Holds);
     }
+    if !footprints.is_empty() {
+        return Ok(underfoot(&view.state, footprints, moved));
+    }
     Ok(folded(&log.entries(key, 0).await?, bound, view, moved))
+}
+
+fn footprints_on(bound: &crate::memory::Bound, anchor: &AnchorKey) -> Vec<gmr_core::Footprint> {
+    bound
+        .rests()
+        .iter()
+        .filter(|r| &r.anchor == anchor)
+        .flat_map(|r| r.paths.iter().cloned())
+        .collect()
+}
+
+fn underfoot(now: &State, footprints: &[gmr_core::Footprint], moved: Seq) -> Holding {
+    let axes: Vec<String> = footprints
+        .iter()
+        .filter(|f| now.hash_at(&f.path) != Some(f.hash.clone()))
+        .map(|f| f.path.as_str().to_owned())
+        .collect();
+    match axes.is_empty() {
+        true => Holding::Holds,
+        false => Holding::Moved { axes, at: moved },
+    }
 }
 
 fn folded(entries: &[(Seq, Entry)], bound: Seq, view: &AnchorView, moved: Seq) -> Holding {
@@ -1224,8 +1266,8 @@ pub(crate) fn viewed(
     };
 
     let sighting = match s.latest.as_ref().map(|o| &o.outcome) {
-        Some(Outcome::Found { .. }) => Sighting::Found,
-        _ => Sighting::Absent,
+        Some(Outcome::Found { .. }) => Presence::Found,
+        _ => Presence::Absent,
     };
     let derivation = s.latest.as_ref().map(|o| o.versions.derivation.clone());
     let fact_address = s.latest.as_ref().map(|o| o.fact_address.clone());
@@ -1274,18 +1316,38 @@ async fn ground(
                     sources: asserted.sources(),
                     bound_at_seq,
                     asserted_at: asserted.first_asserted(),
-                    warrant: Some(warranted(log, &view.key, bound_at_seq, &view, moved_at).await?),
+                    warrant: Some(
+                        warranted(
+                            log,
+                            &view.key,
+                            bound_at_seq,
+                            &view,
+                            moved_at,
+                            &footprints_on(&asserted, &view.key),
+                        )
+                        .await?,
+                    ),
                 });
             }
             Some(Claim::Stored(_)) => {
+                let underfoot = footprints_on(&asserted, &view.key);
                 let Some(stored) = asserted.held() else {
                     continue;
                 };
                 let mut held = memory
                     .fetch_memory(stored, &total.narrowed(call), how.lean)
                     .await?;
-                held.warrant =
-                    Some(warranted(log, &view.key, held.bound_at_seq, &view, moved_at).await?);
+                held.warrant = Some(
+                    warranted(
+                        log,
+                        &view.key,
+                        held.bound_at_seq,
+                        &view,
+                        moved_at,
+                        &underfoot,
+                    )
+                    .await?,
+                );
                 memories.push(held);
             }
             None => {}

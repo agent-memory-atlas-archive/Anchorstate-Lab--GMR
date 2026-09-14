@@ -19,7 +19,7 @@ async fn every_sealed_address_a_revise_cites_is_retrievable() {
     let bindings = Arc::new(MemoryBindings::default());
     let rt = Runtime::builder()
         .transport(Arc::new(Shell::new(dir.path(), dir.path().join(".probes"))))
-        .journal(journal.clone())
+        .store(journal.clone())
         .bindings(bindings.clone())
         .sealer(bindings.clone())
         .links(bindings.clone())
