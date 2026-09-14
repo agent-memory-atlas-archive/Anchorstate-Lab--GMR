@@ -19,17 +19,19 @@ pub use gmr_core::{
     Anchor, AnchorKey, AnchorState, Binding, CanonicalizeError, Change, ChangeKind, Claim,
     ContentHash, Derivation, Entry, Expr, ExternalId, FactAddress, Facts, FailureCode, Kind, Link,
     LinkKind, NewtypeError, OUTCOME_CONTRACT, Observation, Observes, Openness, Outcome, ProbeName,
-    ProbeRef, ProbeVersion, ProviderId, ReasonClass, Recorded, Ref, Retain, Rule, RunSettings,
-    SaidId, Seq, Source, State, StatusId, Superseded, Transitions, Verifiability, Version, fold,
+    ProbeRef, ProbeVersion, ProviderId, Reading, ReasonClass, Recorded, Ref, Retain, Rule,
+    RunSettings, SaidId, Seq, Sighting, Source, State, StatePath, StatusId, Superseded,
+    Transitions, Verifiability, Version, fold,
 };
 pub use gmr_expr::EVALUATOR_VERSION;
 pub use gmr_probe::{ProbeError, ProbeErrorCode, Transport};
 pub use gmr_runtime::{
     AnchorHealth, AnchorLog, AnchorView, Anchored, Asked, AssemblyError, Before, Blind, Bound,
-    Corpus, CorpusHealth, Depends, Edge, Edges, Evidence, Footing, Grounded, Grounding, Holding,
-    HoldingKind, Instructions, Knowledge, KnowledgeKind, Landed, Linked, Looked, MemoryLens,
-    MemoryView, Observed, OpenRequest, Opened, Part, Passed, Policy, Presence, Raised, Reached,
-    Revised, Runtime, RuntimeError, Sample, Scheduler, Shown, Standing, Supersede, Warrant,
+    Cited, Corpus, CorpusHealth, Depends, Drifted, Edge, Edges, Evidence, Footing, Footprint,
+    Grounded, Grounding, Holding, HoldingKind, Instructions, Knowledge, KnowledgeKind, Landed,
+    Linked, Look, Looked, MemoryLens, MemoryView, Observed, OpenRequest, Opened, Part, Passed,
+    Policy, Presence, Raised, Reached, Rests, Revised, Runtime, RuntimeError, Sample, Scheduler,
+    Shown, Standing, Stands, Supersede, Upheld, Warrant, Why,
 };
 pub use gmr_store::{
     BindingStore, Chained, Disposition, ErrorCode, ErrorKind, Fence, Journal, LinkRecord,

@@ -60,6 +60,24 @@ impl Gmr {
     }
 
     #[napi]
+    pub async fn reading(&self, address: String) -> Result<Value> {
+        let rt = Arc::clone(&self.rt);
+        let address = ok(core::addressed(address))?;
+        spawned(async move { ok(core::served(&rt, "reading", rt.reading(&address).await).await) })
+            .await
+    }
+
+    #[napi]
+    pub async fn stands(&self, rests: Vec<Value>) -> Result<Value> {
+        let rt = Arc::clone(&self.rt);
+        let rests = rests
+            .into_iter()
+            .map(|r| ok(core::said(r)))
+            .collect::<Result<Vec<_>>>()?;
+        spawned(async move { ok(core::served(&rt, "stands", rt.stands(&rests).await).await) }).await
+    }
+
+    #[napi]
     pub async fn since(&self, cursor: i64, status: Option<String>) -> Result<Value> {
         let rt = Arc::clone(&self.rt);
         let cursor = u64::try_from(cursor).map_err(|_| {

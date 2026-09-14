@@ -222,8 +222,8 @@ export type Standing = {
   reached?: Reached[];
 } & Depends;
 
-/** One reading of an anchor, and the address an answer built from it must cite. */
-export interface Reading {
+/** One sample of an anchor, and the address an answer built from it must cite. */
+export interface Sample {
   key: string;
   sighting: "found" | "absent";
   facts?: unknown;
@@ -232,6 +232,47 @@ export interface Reading {
   at: Timestamp | null;
   knowledge: Knowledge;
 }
+
+/** One read that happened: which anchor looked, when, and who wrote the value. */
+export interface Look {
+  anchor: string;
+  taken_at: Timestamp;
+  /** Only when the probe could say. A point read cannot. */
+  provenance?: string;
+}
+
+/** What an address names: the value, the instrument, and every look at it. */
+export interface Cited {
+  address: FactAddress;
+  found: boolean;
+  facts?: unknown;
+  instrument: string;
+  looks: Look[];
+}
+
+/** One path of anchor state, and the hash it carried when the assertion was written. */
+export interface Footprint {
+  path: string;
+  hash: string;
+}
+
+/** What one assertion rests on. No paths means it rests on the whole reading. */
+export interface Rests {
+  anchor: string;
+  address: FactAddress;
+  paths?: Footprint[];
+}
+
+/** Whether a citation still stands, and for each path that moved, why. */
+export type Upheld = {
+  anchor: string;
+  address: FactAddress;
+} & (
+  | { stands: "holds" }
+  | { stands: "moved"; drifted: { path: string; why: "value" | "instrument" | "absent" }[] }
+  | { stands: "superseded"; now?: FactAddress }
+  | { stands: "unopened" }
+);
 
 /** One edge as `read` delivers it: who it points at, what kind, who said so. */
 export interface Linked {
@@ -482,7 +523,7 @@ export class Gmr {
    * `saw` when binding it — that is what makes the answer and the anchor
    * the same look at the world rather than two.
    */
-  sample(anchor: string, how?: Instructions): Promise<Reading>;
+  sample(anchor: string, how?: Instructions): Promise<Sample>;
 
   /**
    * The full envelope for one anchor: its state plus every bound record with
@@ -492,6 +533,17 @@ export class Gmr {
   read(anchor: string, how?: Instructions): Promise<Grounded>;
   /** What changed after this point in the journal. */
   since(cursor: Seq, status?: string): Promise<Edges>;
+  /**
+   * What did that address read? The value, the instrument that read it, and
+   * every instant it was read. An address no read entry here issued is a
+   * `no_such_reading` fault, not an empty answer.
+   */
+  reading(address: FactAddress): Promise<Cited>;
+  /**
+   * Do these citations still stand? Answered from the log alone — no probe
+   * runs, so it costs nothing and says nothing about the world right now.
+   */
+  stands(rests: Rests[]): Promise<Upheld[]>;
   /** This sentence is about these anchors. */
   bind(claim: Address, anchors: string[], source: Source,
        how?: Asserting): Promise<Landed>;
@@ -514,7 +566,7 @@ export class Gmr {
          asserted_as?: Source): Promise<number>;
 
   /** The roster: one sample-shaped reading per anchor. The walk's first hop. */
-  anchors(): Promise<Reading[]>;
+  anchors(): Promise<Sample[]>;
   /** Every claim the store holds a live binding for, records and utterances both. */
   claims(): Promise<Claim[]>;
   /** Every claim sharing an anchor with this one — utterances included. */

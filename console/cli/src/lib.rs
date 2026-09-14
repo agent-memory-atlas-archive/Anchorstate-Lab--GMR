@@ -207,6 +207,8 @@ pub async fn served(
             key,
             fresher_than_secs,
         } => verbs::sample::run(&rt, key, fresher_than_secs, json).await,
+        Command::Reading { address } => verbs::cite::reading(&rt, address, json).await,
+        Command::Stands { cited } => verbs::cite::stands(&rt, cited, json).await,
         Command::Atlas { out } => verbs::atlas::run(&rt, &root, names, out, json).await,
         Command::Publish { .. } => unreachable!("publish was handled above"),
         Command::Probes(_) => unreachable!("probes was handled above"),

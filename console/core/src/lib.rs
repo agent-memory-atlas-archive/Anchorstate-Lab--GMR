@@ -256,6 +256,15 @@ pub fn looked(address: String) -> Result<FactAddress, Fault> {
     })
 }
 
+pub fn addressed(address: String) -> Result<gmr::FactAddress, Fault> {
+    gmr::FactAddress::try_new(address.clone()).map_err(|e| {
+        Fault::refused(format!(
+            "`{address}` is not a fact address ({e}). An address is the sha256 a read entry \
+             issued for a reading; it is 64 hex characters and nothing else parses as one"
+        ))
+    })
+}
+
 pub fn stored(address: String) -> Result<gmr::Ref, Fault> {
     match named(address)? {
         Claim::Stored(reference) => Ok(reference),
