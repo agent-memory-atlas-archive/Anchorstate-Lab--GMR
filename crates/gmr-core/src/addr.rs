@@ -251,23 +251,28 @@ impl<'a, W: Write> Canonicalizer<'a, W> {
                 return Err(CanonicalizeError::NonFiniteNumber);
             }
 
-            let mut s = ryu::Buffer::new().format(f).to_owned();
-            if s == "-0" || s == "-0.0" {
-                return Ok("0".to_owned());
+            let formatted = ryu::Buffer::new().format(f).to_owned();
+            let (mantissa, exponent) = match formatted.find(['e', 'E']) {
+                Some(at) => (&formatted[..at], Some(&formatted[at + 1..])),
+                None => (formatted.as_str(), None),
+            };
+
+            let mut s = mantissa.to_owned();
+            if s.contains('.') {
+                while s.ends_with('0') {
+                    s.pop();
+                }
+                if s.ends_with('.') {
+                    s.pop();
+                }
+            }
+            if s == "-0" {
+                s = "0".to_owned();
             }
 
-            if s.contains('.') || s.contains('e') || s.contains('E') {
-                if s.contains('.') {
-                    while s.ends_with('0') {
-                        s.pop();
-                    }
-                    if s.ends_with('.') {
-                        s.pop();
-                    }
-                }
-                if let Some(pos) = s.find('E') {
-                    s.replace_range(pos..=pos, "e");
-                }
+            if let Some(exponent) = exponent {
+                s.push('e');
+                s.push_str(exponent);
             }
 
             return Ok(s);
@@ -356,6 +361,32 @@ mod tests {
         let mut out = Vec::new();
         canonical_write(&mut out, &json!(-0.0)).unwrap();
         assert_eq!(String::from_utf8(out).unwrap(), "0");
+    }
+
+    #[test]
+    fn a_zero_inside_an_exponent_is_not_a_trailing_zero_to_drop() {
+        for (value, written) in [
+            (1.5e20, "1.5e20"),
+            (1.5e200, "1.5e200"),
+            (1.2e30, "1.2e30"),
+            (1e100, "1e100"),
+            (5e-20, "5e-20"),
+        ] {
+            let mut out = Vec::new();
+            canonical_write(&mut out, &json!(value)).unwrap();
+            assert_eq!(String::from_utf8(out).unwrap(), written);
+        }
+    }
+
+    #[test]
+    fn two_numbers_that_differ_only_inside_the_exponent_keep_separate_addresses() {
+        let small = content_hash_of(&json!(1.5e20)).unwrap();
+        let large = content_hash_of(&json!(1.5e200)).unwrap();
+        assert_ne!(
+            small.as_str(),
+            large.as_str(),
+            "1.5e20 and 1.5e200 are different values and cannot share one address"
+        );
     }
 
     #[test]
